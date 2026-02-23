@@ -1,9 +1,10 @@
 // 日本標準時の現在時刻表示
 function updateJST() {
     const now = new Date();
-    // JSTはUTC+9
-    const jst = new Date(now.getTime() + (9 * 60 * 60 * 1000) - (now.getTimezoneOffset() * 60 * 1000));
-    const timeStr = jst.toLocaleTimeString('ja-JP', { hour12: false });
+    // UTC時刻を取得し、JST（+9時間）に変換
+    const utc = now.getTime() + (now.getTimezoneOffset() * 60 * 1000);
+    const jstDate = new Date(utc + (9 * 60 * 60 * 1000));
+    const timeStr = jstDate.toLocaleTimeString('ja-JP', { hour12: false });
     document.getElementById('current-time').textContent = timeStr;
 }
 setInterval(updateJST, 1000);
