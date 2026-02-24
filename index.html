@@ -11,13 +11,30 @@
         <h1>タイマーアプリ</h1>
         <div id="jst-time">日本標準時: <span id="current-time"></span></div>
         <div class="timer">
-            <span id="timer">00:00:00</span>
-        </div>
-        <div class="buttons">
-            <button id="start">スタート</button>
-            <button id="stop">ストップ</button>
-            <button id="reset">リセット</button>
-        </div>
+                    </div>
+                <div id="countdown-timer">
+                <audio id="beep-audio">
+                    <source src="https://cdn.pixabay.com/audio/2022/07/26/audio_124bfae3b2.mp3" type="audio/mpeg">
+                </audio>
+          
+                    <div>
+                        <button onclick="setCountdown(1)">1分</button>
+                        <button onclick="setCountdown(3)">3分</button>
+                        <button onclick="setCountdown(5)">5分</button>
+                    </div>
+                    <div>
+                        <input type="number" id="custom-minutes" min="0" placeholder="分" style="width:60px;">
+                        <input type="number" id="custom-seconds" min="0" max="59" placeholder="秒" style="width:60px;">
+                        <button onclick="setCustomCountdown()">セット</button>
+                    </div>
+                    <div id="countdown-display" style="font-size:2em; margin:10px 0;">00:00.000</div>
+                    <button onclick="startCountdown()">スタート</button>
+                    <button onclick="stopCountdown()">ストップ</button>
+                    <button onclick="resetCountdown()">リセット</button>
+                </div>
+                <div class="buttons">
+                        <!-- ストップウォッチ用ボタン削除 -->
+                </div>
     </div>
     <script src="script.js"></script>
 </body>
