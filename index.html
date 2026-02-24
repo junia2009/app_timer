@@ -17,12 +17,16 @@
         <div class="timer">
                     </div>
                 <div id="countdown-timer">
-                        <div id="sound-btn-area" style="display:none; margin: 16px 0;">
-                            <button id="play-sound-btn">点滅を止める</button>
+                        <div id="earphone-mode-area">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="earphone-mode-toggle">
+                                <span class="toggle-slider"></span>
+                            </label>
+                            <span id="earphone-mode-label">🔇 スピーカーOFF（振動のみ）</span>
                         </div>
-                <audio id="beep-audio">
-                    <source src="sounds/alert_sound.mp3" type="audio/mpeg">
-                </audio>
+                        <div id="sound-btn-area" style="display:none; margin: 16px 0;">
+                            <button id="play-sound-btn">アラームを止める</button>
+                        </div>
           
                     <div>
                         <button onclick="setCountdown(1)">1分</button>

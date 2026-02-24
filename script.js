@@ -28,23 +28,116 @@ function stopFlash() {
     const area = document.getElementById('countdown-timer');
     if (area) area.style.background = '#232526';
 }
-// --- 音声再生の自動ブロック対策 ---
-let beepPrimed = false;
-function primeBeepAudio() {
-    if (!beepPrimed) {
-        const beep = document.getElementById('beep-audio');
-        if (beep) {
-            beep.volume = 0;
-            beep.play().catch(()=>{});
-            beep.pause();
-            beep.currentTime = 0;
-            beep.volume = 1;
-            beepPrimed = true;
+
+// --- Web Audio API によるアラーム音 ---
+let alarmAudioCtx = null;
+let alarmInterval = null;
+let alarmGain = null;
+
+// ブラウザの自動再生ブロック対策: ユーザー操作時に AudioContext を作成
+function ensureAudioContext() {
+    if (!alarmAudioCtx || alarmAudioCtx.state === 'closed') {
+        alarmAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (alarmAudioCtx.state === 'suspended') {
+        alarmAudioCtx.resume();
+    }
+}
+window.addEventListener('click', ensureAudioContext, { once: true });
+window.addEventListener('touchstart', ensureAudioContext, { once: true });
+
+function playAlarmBeep() {
+    if (!alarmAudioCtx) {
+        alarmAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (alarmAudioCtx.state === 'suspended') {
+        alarmAudioCtx.resume();
+    }
+    const ctx = alarmAudioCtx;
+    const t = ctx.currentTime;
+
+    // ビープ音パターン: ピピピッ … ピピピッ … を繰り返す
+    function scheduleBeepGroup(startTime) {
+        for (let i = 0; i < 3; i++) {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'square';
+            osc.frequency.value = 1200;
+            gain.gain.setValueAtTime(0.35, startTime + i * 0.12);
+            gain.gain.setValueAtTime(0, startTime + i * 0.12 + 0.09);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(startTime + i * 0.12);
+            osc.stop(startTime + i * 0.12 + 0.09);
         }
+    }
+
+    // 最初のグループをすぐ再生
+    scheduleBeepGroup(t);
+
+    // 0.7秒ごとに繰り返し
+    alarmInterval = setInterval(() => {
+        if (alarmAudioCtx && alarmAudioCtx.state === 'running') {
+            scheduleBeepGroup(alarmAudioCtx.currentTime);
+        }
+    }, 700);
+}
+
+function stopAlarm() {
+    if (alarmInterval) {
+        clearInterval(alarmInterval);
+        alarmInterval = null;
+    }
+    stopVibration();
+}
+
+// --- バイブレーション ---
+let vibrationInterval = null;
+function startVibration() {
+    if (!navigator.vibrate) return; // 非対応ブラウザはスキップ
+    // パターン: 振動200ms → 休止300ms → 振動200ms → 休止300ms → 振動200ms → 休止700ms を繰り返す
+    navigator.vibrate([200, 300, 200, 300, 200, 700]);
+    vibrationInterval = setInterval(() => {
+        navigator.vibrate([200, 300, 200, 300, 200, 700]);
+    }, 1900);
+}
+function stopVibration() {
+    if (vibrationInterval) {
+        clearInterval(vibrationInterval);
+        vibrationInterval = null;
+    }
+    if (navigator.vibrate) navigator.vibrate(0);
+}
+
+// --- イヤホンモード ---
+let earphoneMode = false;
+
+function updateEarphoneLabel() {
+    const label = document.getElementById('earphone-mode-label');
+    if (!label) return;
+    if (earphoneMode) {
+        label.textContent = '🎧 イヤホンモード（音あり）';
+        label.style.color = '#4fc3f7';
+    } else {
+        label.textContent = '🔇 スピーカーOFF（振動のみ）';
+        label.style.color = '#b0b0b0';
     }
 }
 
-window.addEventListener('click', primeBeepAudio, { once: true });
+function triggerAlarm() {
+    startFlash();
+    startVibration();
+    if (earphoneMode) {
+        playAlarmBeep();
+    }
+}
+
+function stopAllAlarm() {
+    stopAlarm();
+    stopFlash();
+    stopVibration();
+}
+
 let countdownInterval;
 let countdownTime = 0;
 let countdownRemaining = 0;
@@ -96,32 +189,45 @@ function startCountdown() {
             countdownRemaining = 0;
             updateCountdownDisplay();
             stopCountdown();
-            // 音を鳴らすボタンを表示
+            // アラーム通知開始、停止ボタン表示
             const area = document.getElementById('sound-btn-area');
             if (area) area.style.display = '';
-            startFlash();
+            triggerAlarm();
         } else {
             updateCountdownDisplay();
         }
     }, 10);
 }
 
-// 音を鳴らすボタンの処理
+// 初期化
 window.addEventListener('DOMContentLoaded', () => {
+    // アラーム停止ボタン
     const btn = document.getElementById('play-sound-btn');
     if (btn) {
         btn.addEventListener('click', () => {
-            const beep = document.getElementById('beep-audio');
-            if (beep) {
-                beep.currentTime = 0;
-                beep.play().catch(e => {
-                    console.error('音声再生エラー:', e);
-                });
-            }
-            // ボタンを非表示に戻す
+            stopAllAlarm();
             const area = document.getElementById('sound-btn-area');
             if (area) area.style.display = 'none';
-            stopFlash();
+        });
+    }
+
+    // イヤホンモード トグル
+    const toggle = document.getElementById('earphone-mode-toggle');
+    if (toggle) {
+        // localStorageから復元
+        const saved = localStorage.getItem('earphoneMode');
+        if (saved === 'true') {
+            earphoneMode = true;
+            toggle.checked = true;
+        }
+        updateEarphoneLabel();
+
+        toggle.addEventListener('change', () => {
+            earphoneMode = toggle.checked;
+            localStorage.setItem('earphoneMode', earphoneMode);
+            updateEarphoneLabel();
+            // トグル操作時に AudioContext を準備
+            if (earphoneMode) ensureAudioContext();
         });
     }
 });
