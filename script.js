@@ -138,6 +138,58 @@ function stopAllAlarm() {
     stopVibration();
 }
 
+// --- Wake Lock API（画面スリープ防止） ---
+let wakeLock = null;
+
+async function requestWakeLock() {
+    if (!('wakeLock' in navigator)) {
+        updateWakeLockStatus('非対応');
+        return;
+    }
+    try {
+        wakeLock = await navigator.wakeLock.request('screen');
+        updateWakeLockStatus('ON');
+        // タブが再表示されたら自動で再取得
+        wakeLock.addEventListener('release', () => {
+            updateWakeLockStatus('OFF');
+            wakeLock = null;
+        });
+    } catch (e) {
+        updateWakeLockStatus('OFF');
+        console.warn('Wake Lock 取得失敗:', e);
+    }
+}
+
+async function releaseWakeLock() {
+    if (wakeLock) {
+        await wakeLock.release();
+        wakeLock = null;
+        updateWakeLockStatus('OFF');
+    }
+}
+
+function updateWakeLockStatus(status) {
+    const el = document.getElementById('wakelock-status');
+    if (!el) return;
+    if (status === 'ON') {
+        el.textContent = '☀️ 画面スリープ防止: ON';
+        el.style.color = '#66bb6a';
+    } else if (status === '非対応') {
+        el.textContent = '⚠️ スリープ防止: このブラウザでは非対応';
+        el.style.color = '#ff9800';
+    } else {
+        el.textContent = '💤 画面スリープ防止: OFF';
+        el.style.color = '#888';
+    }
+}
+
+// タブが再表示された時にWake Lockを再取得
+document.addEventListener('visibilitychange', async () => {
+    if (document.visibilityState === 'visible' && countdownRunning && !wakeLock) {
+        await requestWakeLock();
+    }
+});
+
 let countdownInterval;
 let countdownTime = 0;
 let countdownRemaining = 0;
@@ -179,6 +231,7 @@ function updateCountdownDisplay() {
 function startCountdown() {
     if (countdownRunning || countdownRemaining <= 0) return;
     countdownRunning = true;
+    requestWakeLock();
     let last = performance.now();
     countdownInterval = setInterval(() => {
         let now = performance.now();
@@ -206,10 +259,14 @@ window.addEventListener('DOMContentLoaded', () => {
     if (btn) {
         btn.addEventListener('click', () => {
             stopAllAlarm();
+            releaseWakeLock();
             const area = document.getElementById('sound-btn-area');
             if (area) area.style.display = 'none';
         });
     }
+
+    // Wake Lock 初期表示
+    updateWakeLockStatus('OFF');
 
     // イヤホンモード トグル
     const toggle = document.getElementById('earphone-mode-toggle');
@@ -241,4 +298,8 @@ function resetCountdown() {
     countdownRemaining = countdownTime;
     updateCountdownDisplay();
     stopCountdown();
+    releaseWakeLock();
+    stopAllAlarm();
+    const area = document.getElementById('sound-btn-area');
+    if (area) area.style.display = 'none';
 }
