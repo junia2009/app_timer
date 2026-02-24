@@ -56,31 +56,35 @@ function playAlarmBeep() {
     const ctx = alarmAudioCtx;
     const t = ctx.currentTime;
 
-    // ビープ音パターン: ピピピッ … ピピピッ … を繰り返す
+    // ビープ音パターン: やさしいトーンを3回 … 繰り返す
     function scheduleBeepGroup(startTime) {
+        const notes = [660, 880, 660]; // 柔らかいメロディ風
         for (let i = 0; i < 3; i++) {
             const osc = ctx.createOscillator();
             const gain = ctx.createGain();
-            osc.type = 'square';
-            osc.frequency.value = 1200;
-            gain.gain.setValueAtTime(0.35, startTime + i * 0.12);
-            gain.gain.setValueAtTime(0, startTime + i * 0.12 + 0.09);
+            osc.type = 'sine';
+            osc.frequency.value = notes[i];
+            // フェードイン・フェードアウトで耳あたりをやさしく
+            const noteStart = startTime + i * 0.2;
+            gain.gain.setValueAtTime(0, noteStart);
+            gain.gain.linearRampToValueAtTime(0.25, noteStart + 0.04);
+            gain.gain.linearRampToValueAtTime(0, noteStart + 0.16);
             osc.connect(gain);
             gain.connect(ctx.destination);
-            osc.start(startTime + i * 0.12);
-            osc.stop(startTime + i * 0.12 + 0.09);
+            osc.start(noteStart);
+            osc.stop(noteStart + 0.18);
         }
     }
 
     // 最初のグループをすぐ再生
     scheduleBeepGroup(t);
 
-    // 0.7秒ごとに繰り返し
+    // 1秒ごとに繰り返し（間隔をゆったり）
     alarmInterval = setInterval(() => {
         if (alarmAudioCtx && alarmAudioCtx.state === 'running') {
             scheduleBeepGroup(alarmAudioCtx.currentTime);
         }
-    }, 700);
+    }, 1000);
 }
 
 function stopAlarm() {
