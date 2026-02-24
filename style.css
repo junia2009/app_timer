@@ -1,3 +1,23 @@
+#play-sound-btn {
+    background: #ffe600 !important;
+    color: #232526 !important;
+    font-size: 1.25em !important;
+    font-weight: bold;
+    border: 2px solid #ffe600;
+    box-shadow: 0 0 12px #ffe60088;
+    padding: 14px 36px;
+    margin: 10px 0;
+    border-radius: 10px;
+    transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+}
+#play-sound-btn:hover {
+    background: #fff700 !important;
+    color: #000 !important;
+    box-shadow: 0 0 20px #ffe600cc;
+}
+
+
+
 body {
     font-family: 'Noto Sans JP', 'Segoe UI', 'Meiryo', sans-serif;
     background: #181a1b;
