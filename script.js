@@ -19,14 +19,14 @@ function startFlash() {
     if (!area) return;
     let on = false;
     flashInterval = setInterval(() => {
-        area.style.background = on ? '#ffe600' : '#232526';
+        area.style.background = on ? '#ffe600' : '';
         on = !on;
     }, 300);
 }
 function stopFlash() {
     clearInterval(flashInterval);
     const area = document.getElementById('countdown-timer');
-    if (area) area.style.background = '#232526';
+    if (area) area.style.background = '';
 }
 
 // --- Web Audio API によるアラーム音 ---

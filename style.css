@@ -1,22 +1,243 @@
+/* ============================================
+   深海テーマ + 泡アニメーション
+   ============================================ */
+html, body {
+    height: 100%;
+}
+body {
+    font-family: 'Noto Sans JP', 'Segoe UI', 'Meiryo', sans-serif;
+    color: #e6f4f8;
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    overflow-x: hidden;
+    position: relative;
+    background: linear-gradient(
+        180deg,
+        #051c2c 0%,
+        #062b45 25%,
+        #073858 55%,
+        #03101c 100%
+    );
+    background-attachment: fixed;
+}
+
+/* 海面側からのほのかな光（光芒） */
+body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background:
+        radial-gradient(ellipse at 20% -10%, rgba(120, 200, 230, 0.18), transparent 55%),
+        radial-gradient(ellipse at 80% -10%, rgba(80, 160, 210, 0.12), transparent 60%);
+    z-index: 0;
+}
+/* 水底の暗がり */
+body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(circle at 50% 120%, rgba(0, 30, 50, 0.65), transparent 60%);
+    z-index: 0;
+}
+
+/* --- 泡アニメーション --- */
+.bubbles {
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 0;
+}
+.bubbles span {
+    position: absolute;
+    bottom: -80px;
+    display: block;
+    width: 20px;
+    height: 20px;
+    background: radial-gradient(circle at 30% 30%,
+        rgba(255, 255, 255, 0.85),
+        rgba(180, 230, 245, 0.35) 40%,
+        rgba(120, 200, 230, 0.05) 70%,
+        transparent 100%);
+    border-radius: 50%;
+    box-shadow: inset 0 0 6px rgba(255, 255, 255, 0.4);
+    opacity: 0;
+    animation: bubble-rise linear infinite;
+}
+@keyframes bubble-rise {
+    0%   { transform: translateY(0) translateX(0) scale(0.8); opacity: 0; }
+    10%  { opacity: 0.9; }
+    50%  { transform: translateY(-50vh) translateX(20px) scale(1); }
+    100% { transform: translateY(-110vh) translateX(-15px) scale(1.1); opacity: 0; }
+}
+.bubbles span:nth-child(1)  { left:  4%; width: 14px; height: 14px; animation-duration: 12s; animation-delay:  0s; }
+.bubbles span:nth-child(2)  { left: 11%; width: 22px; height: 22px; animation-duration: 16s; animation-delay:  3s; }
+.bubbles span:nth-child(3)  { left: 18%; width:  8px; height:  8px; animation-duration:  9s; animation-delay:  1s; }
+.bubbles span:nth-child(4)  { left: 26%; width: 28px; height: 28px; animation-duration: 18s; animation-delay:  6s; }
+.bubbles span:nth-child(5)  { left: 33%; width: 12px; height: 12px; animation-duration: 11s; animation-delay:  2s; }
+.bubbles span:nth-child(6)  { left: 41%; width: 18px; height: 18px; animation-duration: 14s; animation-delay:  5s; }
+.bubbles span:nth-child(7)  { left: 49%; width: 10px; height: 10px; animation-duration: 10s; animation-delay:  0.5s; }
+.bubbles span:nth-child(8)  { left: 56%; width: 24px; height: 24px; animation-duration: 17s; animation-delay:  4s; }
+.bubbles span:nth-child(9)  { left: 64%; width: 16px; height: 16px; animation-duration: 13s; animation-delay:  7s; }
+.bubbles span:nth-child(10) { left: 71%; width:  9px; height:  9px; animation-duration:  9.5s; animation-delay:  1.5s; }
+.bubbles span:nth-child(11) { left: 78%; width: 26px; height: 26px; animation-duration: 19s; animation-delay:  8s; }
+.bubbles span:nth-child(12) { left: 86%; width: 13px; height: 13px; animation-duration: 12.5s; animation-delay:  2.5s; }
+.bubbles span:nth-child(13) { left: 93%; width: 11px; height: 11px; animation-duration: 11s; animation-delay:  9s; }
+.bubbles span:nth-child(14) { left: 47%; width: 30px; height: 30px; animation-duration: 21s; animation-delay: 10s; }
+.bubbles span:nth-child(15) { left: 73%; width: 15px; height: 15px; animation-duration: 14.5s; animation-delay:  6.5s; }
+.bubbles span:nth-child(16) { left:  8%; width: 10px; height: 10px; animation-duration: 13s; animation-delay: 11s; }
+.bubbles span:nth-child(17) { left: 30%; width: 17px; height: 17px; animation-duration: 15s; animation-delay:  4.5s; }
+.bubbles span:nth-child(18) { left: 60%; width: 12px; height: 12px; animation-duration: 11.5s; animation-delay:  3.5s; }
+.bubbles span:nth-child(19) { left: 82%; width: 20px; height: 20px; animation-duration: 16.5s; animation-delay:  7.5s; }
+.bubbles span:nth-child(20) { left: 22%; width: 14px; height: 14px; animation-duration: 13s; animation-delay:  8.5s; }
+
+@media (prefers-reduced-motion: reduce) {
+    .bubbles span { animation: none; opacity: 0; }
+}
+
+/* --- メインコンテナ（深海ガラス） --- */
+.container {
+    position: relative;
+    z-index: 1;
+    max-width: 420px;
+    margin: 60px auto;
+    padding: 36px 28px;
+    text-align: center;
+    background: rgba(8, 30, 48, 0.45);
+    backdrop-filter: blur(16px) saturate(140%);
+    -webkit-backdrop-filter: blur(16px) saturate(140%);
+    border: 1px solid rgba(140, 220, 240, 0.18);
+    border-radius: 18px;
+    box-shadow:
+        0 10px 40px rgba(0, 0, 0, 0.5),
+        0 0 60px rgba(80, 180, 220, 0.08),
+        inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+.container > * {
+    position: relative;
+    z-index: 1;
+}
+
+/* --- タイトル --- */
+h1 {
+    font-family: 'Fredoka', 'Zen Maru Gothic', 'Noto Sans JP', sans-serif;
+    font-size: 2.3em;
+    font-weight: 600;
+    margin: 0 0 4px;
+    letter-spacing: 0.05em;
+    color: #cfeef7;
+    text-shadow:
+        0 0 14px rgba(120, 220, 240, 0.55),
+        0 0 28px rgba(80, 180, 220, 0.35);
+}
+.version {
+    font-size: 0.75em;
+    color: #7fb3c2;
+    letter-spacing: 0.1em;
+    margin-bottom: 22px;
+    opacity: 0.85;
+}
+
+/* --- JST 時刻 --- */
+#jst-time {
+    font-size: 1em;
+    margin-bottom: 18px;
+    color: #9fcfdc;
+    letter-spacing: 0.05em;
+}
+
+/* --- 上段タイマー枠（未使用領域だが保持） --- */
+.timer {
+    font-size: 2.4em;
+    margin-bottom: 16px;
+    color: #aef0ff;
+    letter-spacing: 0.04em;
+    font-family: 'Noto Sans Mono', 'Consolas', 'Menlo', monospace;
+    text-shadow: 0 0 12px rgba(120, 220, 240, 0.45);
+}
+
+/* --- カウントダウンエリア --- */
+#countdown-timer {
+    margin-bottom: 24px;
+    padding: 20px 12px;
+    background: rgba(4, 22, 36, 0.55);
+    border: 1px solid rgba(140, 220, 240, 0.12);
+    border-radius: 14px;
+    box-shadow:
+        inset 0 0 30px rgba(0, 30, 50, 0.5),
+        0 1px 8px rgba(0, 0, 0, 0.3);
+}
+
+#countdown-timer button {
+    margin: 4px;
+    padding: 9px 20px;
+    font-size: 1.02em;
+    border: 1px solid rgba(140, 220, 240, 0.3);
+    border-radius: 999px;
+    background: rgba(20, 70, 100, 0.45);
+    color: #e6f4f8;
+    cursor: pointer;
+    letter-spacing: 0.06em;
+    transition: background 0.25s ease, box-shadow 0.25s ease, transform 0.15s ease;
+    font-family: 'Noto Sans JP', 'Segoe UI', 'Meiryo', sans-serif;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+}
+#countdown-timer button:hover {
+    background: rgba(60, 140, 180, 0.55);
+    box-shadow: 0 0 14px rgba(120, 220, 240, 0.4);
+}
+#countdown-timer button:active {
+    transform: scale(0.97);
+}
+
+#countdown-timer input {
+    font-size: 1.05em;
+    padding: 7px 6px;
+    border: 1px solid rgba(140, 220, 240, 0.25);
+    border-radius: 8px;
+    margin-right: 6px;
+    text-align: right;
+    background: rgba(4, 22, 36, 0.65);
+    color: #e6f4f8;
+    font-family: 'Noto Sans Mono', 'Consolas', 'Menlo', monospace;
+}
+#countdown-timer input:focus {
+    outline: none;
+    border-color: rgba(140, 220, 240, 0.55);
+    box-shadow: 0 0 10px rgba(120, 220, 240, 0.3);
+}
+
+#countdown-display {
+    color: #aef0ff;
+    font-family: 'Noto Sans Mono', 'Consolas', 'Menlo', monospace;
+    letter-spacing: 0.04em;
+    text-shadow:
+        0 0 12px rgba(120, 220, 240, 0.55),
+        0 0 28px rgba(80, 180, 220, 0.3);
+}
+
+/* --- アラーム停止ボタン --- */
 #play-sound-btn {
-    background: #ffe600 !important;
-    color: #232526 !important;
-    font-size: 1.25em !important;
+    background: rgba(255, 220, 100, 0.95) !important;
+    color: #052032 !important;
+    font-size: 1.2em !important;
     font-weight: bold;
-    border: 2px solid #ffe600;
-    box-shadow: 0 0 12px #ffe60088;
-    padding: 14px 36px;
-    margin: 10px 0;
-    border-radius: 10px;
+    border: 2px solid rgba(255, 230, 0, 0.85);
+    box-shadow: 0 0 18px rgba(255, 230, 0, 0.55);
+    padding: 13px 32px;
+    margin: 8px 0;
+    border-radius: 999px;
     transition: background 0.2s, color 0.2s, box-shadow 0.2s;
 }
 #play-sound-btn:hover {
-    background: #fff700 !important;
+    background: rgba(255, 240, 130, 1) !important;
     color: #000 !important;
-    box-shadow: 0 0 20px #ffe600cc;
+    box-shadow: 0 0 26px rgba(255, 230, 0, 0.85);
 }
-
-
 
 /* --- イヤホンモードトグル --- */
 #earphone-mode-area {
@@ -29,8 +250,9 @@
 }
 #earphone-mode-label {
     font-size: 0.92em;
-    color: #b0b0b0;
+    color: #9fcfdc;
     user-select: none;
+    letter-spacing: 0.04em;
 }
 .toggle-switch {
     position: relative;
@@ -48,223 +270,49 @@
     position: absolute;
     cursor: pointer;
     top: 0; left: 0; right: 0; bottom: 0;
-    background: #444;
+    background: rgba(20, 50, 70, 0.8);
+    border: 1px solid rgba(140, 220, 240, 0.2);
     border-radius: 26px;
-    transition: background 0.3s;
+    transition: background 0.3s, box-shadow 0.3s;
 }
 .toggle-slider::before {
     content: '';
     position: absolute;
     width: 20px;
     height: 20px;
-    left: 3px;
-    bottom: 3px;
-    background: #e0e0e0;
+    left: 2px;
+    bottom: 2px;
+    background: #cfeef7;
     border-radius: 50%;
     transition: transform 0.3s;
+    box-shadow: 0 0 6px rgba(120, 220, 240, 0.5);
 }
 .toggle-switch input:checked + .toggle-slider {
-    background: #4fc3f7;
+    background: rgba(80, 180, 220, 0.65);
+    box-shadow: 0 0 12px rgba(120, 220, 240, 0.5);
 }
 .toggle-switch input:checked + .toggle-slider::before {
     transform: translateX(22px);
 }
 
-body {
-    font-family: 'Noto Sans JP', 'Segoe UI', 'Meiryo', sans-serif;
-    background: #0a0a14;
-    color: #e0e0e0;
-    margin: 0;
-    padding: 0;
-    min-height: 100vh;
-    overflow: hidden;
-    position: relative;
-}
-
-/* --- 背景グロウオーブ --- */
-.orb {
-    position: fixed;
-    border-radius: 50%;
-    pointer-events: none;
-    z-index: 0;
-}
-.orb-1 {
-    width: 420px;
-    height: 420px;
-    background: radial-gradient(circle, rgba(79, 195, 247, 0.45), transparent 65%);
-    top: -100px;
-    left: -100px;
-    filter: blur(60px);
-    animation: orb-float-1 10s ease-in-out infinite alternate;
-}
-.orb-2 {
-    width: 350px;
-    height: 350px;
-    background: radial-gradient(circle, rgba(224, 64, 251, 0.4), transparent 65%);
-    bottom: -80px;
-    right: -80px;
-    filter: blur(60px);
-    animation: orb-float-2 12s ease-in-out infinite alternate;
-}
-.orb-3 {
-    width: 280px;
-    height: 280px;
-    background: radial-gradient(circle, rgba(255, 152, 0, 0.3), transparent 65%);
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    filter: blur(70px);
-    animation: orb-float-3 14s ease-in-out infinite alternate;
-}
-
-@keyframes orb-float-1 {
-    0%   { transform: translate(0, 0) scale(1); }
-    50%  { transform: translate(80px, 120px) scale(1.2); }
-    100% { transform: translate(30px, 200px) scale(0.9); }
-}
-@keyframes orb-float-2 {
-    0%   { transform: translate(0, 0) scale(1); }
-    50%  { transform: translate(-70px, -100px) scale(1.15); }
-    100% { transform: translate(-30px, -180px) scale(0.85); }
-}
-@keyframes orb-float-3 {
-    0%   { transform: translate(-50%, -50%) scale(0.8); }
-    50%  { transform: translate(-30%, -60%) scale(1.1); }
-    100% { transform: translate(-60%, -40%) scale(0.9); }
-}
-
-.container {
-    max-width: 400px;
-    margin: 60px auto;
-    background: rgba(30, 32, 38, 0.8);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(100, 180, 255, 0.12);
-    border-radius: 16px;
-    box-shadow: 0 8px 40px rgba(0,0,0,0.5), 0 0 80px rgba(79,195,247,0.1), inset 0 0 60px rgba(79,195,247,0.04);
-    padding: 36px 28px;
-    text-align: center;
-    position: relative;
-    z-index: 1;
-    overflow: hidden;
-}
-
-/* --- パネル内のグロウ演出 --- */
-.container::before {
-    content: '';
-    position: absolute;
-    width: 320px;
-    height: 320px;
-    border-radius: 50%;
-    background: radial-gradient(circle, rgba(79, 195, 247, 0.5), transparent 60%);
-    top: -80px;
-    right: -60px;
-    filter: blur(30px);
-    pointer-events: none;
-    animation: panel-glow-1 8s ease-in-out infinite alternate;
-    z-index: 0;
-}
-.container::after {
-    content: '';
-    position: absolute;
-    width: 280px;
-    height: 280px;
-    border-radius: 50%;
-    background: radial-gradient(circle, rgba(224, 64, 251, 0.45), transparent 60%);
-    bottom: -60px;
-    left: -50px;
-    filter: blur(30px);
-    pointer-events: none;
-    animation: panel-glow-2 10s ease-in-out infinite alternate;
-    z-index: 0;
-}
-
-/* パネル内の子要素を前面に */
-.container > * {
-    position: relative;
-    z-index: 1;
-}
-
-@keyframes panel-glow-1 {
-    0%   { transform: translate(0, 0) scale(1); opacity: 0.7; }
-    50%  { transform: translate(-30px, 40px) scale(1.2); opacity: 1; }
-    100% { transform: translate(-60px, 80px) scale(0.9); opacity: 0.6; }
-}
-@keyframes panel-glow-2 {
-    0%   { transform: translate(0, 0) scale(1); opacity: 0.6; }
-    50%  { transform: translate(40px, -30px) scale(1.15); opacity: 1; }
-    100% { transform: translate(70px, -60px) scale(0.85); opacity: 0.5; }
-}
-h1 {
-    color: #f5f5f5;
-    margin-bottom: 28px;
-    font-family: 'Fredoka', 'Zen Maru Gothic', 'Noto Sans JP', sans-serif;
-    font-size: 2.3em;
-    font-weight: 600;
+/* --- Wake Lock 状態表示 --- */
+#wakelock-status {
+    color: #7fb3c2;
     letter-spacing: 0.04em;
-    background: linear-gradient(135deg, #4fc3f7, #e040fb, #ff9800);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-}
-#jst-time {
-    font-size: 1.1em;
-    margin-bottom: 18px;
-    color: #b0b0b0;
-}
-.timer {
-    font-size: 2.7em;
-    margin-bottom: 24px;
-    color: #90caf9;
-    letter-spacing: 0.04em;
-    font-family: 'Noto Sans Mono', 'Consolas', 'Menlo', monospace;
 }
 
-#countdown-timer {
-    margin-bottom: 24px;
-    padding: 18px 10px 18px 10px;
-    background: #232526;
-    border-radius: 12px;
-    box-shadow: 0 1px 8px rgba(0,0,0,0.18);
-}
-#countdown-timer button {
-    margin: 4px;
-    padding: 8px 22px;
-    font-size: 1.08em;
-    border: none;
-    border-radius: 8px;
-    background: #263238;
-    color: #e0e0e0;
-    cursor: pointer;
-    transition: background 0.2s, color 0.2s;
-    font-family: 'Noto Sans JP', 'Segoe UI', 'Meiryo', sans-serif;
-}
-#countdown-timer button:hover {
-    background: #37474f;
-    color: #90caf9;
-}
-#countdown-timer input {
-    font-size: 1.08em;
-    padding: 7px 6px;
-    border: 1px solid #444;
-    border-radius: 6px;
-    margin-right: 6px;
-    text-align: right;
-    background: #181a1b;
-    color: #e0e0e0;
-    font-family: 'Noto Sans Mono', 'Consolas', 'Menlo', monospace;
-}
+/* --- 旧 .buttons（互換用） --- */
 .buttons button {
     font-size: 1em;
     padding: 10px 24px;
     margin: 0 8px;
-    border: none;
-    border-radius: 6px;
-    background: #0078d7;
-    color: #fff;
+    border: 1px solid rgba(140, 220, 240, 0.3);
+    border-radius: 999px;
+    background: rgba(20, 70, 100, 0.45);
+    color: #e6f4f8;
     cursor: pointer;
     transition: background 0.2s;
 }
 .buttons button:hover {
-    background: #005fa3;
+    background: rgba(60, 140, 180, 0.55);
 }
