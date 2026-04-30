@@ -14,11 +14,15 @@
     <link rel="icon" type="image/png" sizes="512x512" href="icon.png">
 </head>
 <body>
-    <div class="orb orb-1"></div>
-    <div class="orb orb-2"></div>
-    <div class="orb orb-3"></div>
+    <div class="bubbles" aria-hidden="true">
+        <span></span><span></span><span></span><span></span><span></span>
+        <span></span><span></span><span></span><span></span><span></span>
+        <span></span><span></span><span></span><span></span><span></span>
+        <span></span><span></span><span></span><span></span><span></span>
+    </div>
     <div class="container">
         <h1>My タイマー</h1>
+        <div class="version">ver 1.0.0</div>
         <div id="jst-time">日本標準時: <span id="current-time"></span></div>
         <div class="timer">
                     </div>
@@ -33,7 +37,7 @@
                         <div id="sound-btn-area" style="display:none; margin: 16px 0;">
                             <button id="play-sound-btn">アラームを止める</button>
                         </div>
-          
+
                     <div>
                         <button onclick="setCountdown(1)">1分</button>
                         <button onclick="setCountdown(3)">3分</button>
