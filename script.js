@@ -419,6 +419,7 @@ function renderPresets() {
 // 別ウィンドウを増やさずに済むよう、同じページの表示を切り替える方式。
 // インストール済み PWA の場合はウィンドウのサイズ・位置も合わせて変更する。
 const COMPACT_STORAGE_KEY = 'compactMode';
+const COMPACT_POS_STORAGE_KEY = 'compactWindowPos';
 const COMPACT_WINDOW = { w: 340, h: 330 };
 let compactMode = false;
 let savedWindowRect = null;
@@ -434,6 +435,43 @@ function isWindowMaximized() {
 
 function isCompactWindowSize() {
     return window.outerWidth <= COMPACT_WINDOW.w + 60;
+}
+
+// コンパクト時のウィンドウ位置を覚えておく
+// （毎回右下に戻されると、置きたい場所に固定しておけないため）
+function saveCompactWindowPos() {
+    if (!compactMode || !isCompactWindowSize()) return;
+    try {
+        localStorage.setItem(COMPACT_POS_STORAGE_KEY, JSON.stringify({
+            x: window.screenX,
+            y: window.screenY
+        }));
+    } catch (e) {
+        console.warn('ウィンドウ位置の保存に失敗:', e);
+    }
+}
+
+function loadCompactWindowPos() {
+    let pos = null;
+    try {
+        const raw = localStorage.getItem(COMPACT_POS_STORAGE_KEY);
+        if (raw) {
+            const parsed = JSON.parse(raw);
+            if (parsed && Number.isFinite(parsed.x) && Number.isFinite(parsed.y)) pos = parsed;
+        }
+    } catch (e) {
+        console.warn('ウィンドウ位置の読み込みに失敗:', e);
+    }
+    const availW = window.screen.availWidth || 1280;
+    const availH = window.screen.availHeight || 720;
+    // 既定は右下。モニタ構成が変わっても画面外に出ないよう収める
+    if (!pos) {
+        pos = { x: availW - COMPACT_WINDOW.w - 24, y: availH - COMPACT_WINDOW.h - 24 };
+    }
+    return {
+        x: Math.min(Math.max(0, pos.x), Math.max(0, availW - COMPACT_WINDOW.w)),
+        y: Math.min(Math.max(0, pos.y), Math.max(0, availH - COMPACT_WINDOW.h))
+    };
 }
 
 // kind: null（非表示） / 'maximized' / 'unsupported'
@@ -489,11 +527,9 @@ function startUnmaximizeWatch() {
 function tryResizeToCompact() {
     compactResizeAttempts++;
     try {
+        const pos = loadCompactWindowPos();
         window.resizeTo(COMPACT_WINDOW.w, COMPACT_WINDOW.h);
-        window.moveTo(
-            Math.max(0, (window.screen.availWidth || 1280) - COMPACT_WINDOW.w - 24),
-            Math.max(0, (window.screen.availHeight || 720) - COMPACT_WINDOW.h - 24)
-        );
+        window.moveTo(pos.x, pos.y);
     } catch (e) {
         console.info('ウィンドウのリサイズは利用できません:', e);
     }
@@ -513,6 +549,12 @@ function tryResizeToCompact() {
         }
     }, 250);
 }
+
+// 閉じる・裏に回るタイミングでも位置を控えておく
+window.addEventListener('pagehide', saveCompactWindowPos);
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') saveCompactWindowPos();
+});
 
 async function applyCompactWindowSize() {
     compactResizeAttempts = 0;
@@ -547,6 +589,8 @@ function restoreWindowSize() {
 }
 
 function setCompactMode(on) {
+    // 抜ける前に今の位置を控える（compactMode を落とすと保存条件を満たさなくなる）
+    if (!on && compactMode) saveCompactWindowPos();
     compactMode = !!on;
     document.body.classList.toggle('compact', compactMode);
     try {

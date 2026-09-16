@@ -501,3 +501,22 @@ body.flash-on #earphone-mode-label {
     border: 1px solid rgba(255, 200, 130, 0.4);
     border-radius: 4px;
 }
+
+#ontop-note {
+    margin-top: 8px;
+    font-size: 0.76em;
+    line-height: 1.7;
+    color: #8fb4c6;
+}
+#ontop-note a {
+    color: #7fd0ff;
+}
+#ontop-note kbd {
+    padding: 1px 5px;
+    font-size: 0.95em;
+    font-family: inherit;
+    color: #cfeaf6;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(140, 220, 240, 0.3);
+    border-radius: 4px;
+}
