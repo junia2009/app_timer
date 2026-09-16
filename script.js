@@ -219,8 +219,8 @@ let countdownTime = 0;
 let countdownRemaining = 0;
 let countdownRunning = false;
 
-function setCountdown(minutes) {
-    countdownTime = minutes * 60 * 1000;
+function setCountdownSeconds(totalSeconds) {
+    countdownTime = totalSeconds * 1000;
     countdownRemaining = countdownTime;
     countdownRunning = false;
     clearInterval(countdownInterval);
@@ -228,15 +228,18 @@ function setCountdown(minutes) {
     showAlarmButton(false);
 }
 
+function setCountdown(minutes) {
+    setCountdownSeconds(minutes * 60);
+}
+
+function readCustomInputSeconds() {
+    const min = parseInt(document.getElementById('custom-minutes').value, 10) || 0;
+    const sec = parseInt(document.getElementById('custom-seconds').value, 10) || 0;
+    return min * 60 + sec;
+}
+
 function setCustomCountdown() {
-    const min = parseInt(document.getElementById('custom-minutes').value) || 0;
-    const sec = parseInt(document.getElementById('custom-seconds').value) || 0;
-    countdownTime = (min * 60 + sec) * 1000;
-    countdownRemaining = countdownTime;
-    countdownRunning = false;
-    clearInterval(countdownInterval);
-    updateCountdownDisplay();
-    showAlarmButton(false);
+    setCountdownSeconds(readCustomInputSeconds());
 }
 
 function updateCountdownDisplay() {
@@ -274,12 +277,153 @@ function startCountdown() {
     }, 10);
 }
 
+// --- プリセット（ユーザーが自由に登録できる） ---
+const DEFAULT_PRESETS = [60, 180, 300]; // 1分 / 3分 / 5分
+const MAX_PRESETS = 10;
+const PRESETS_STORAGE_KEY = 'timerPresets';
+
+let presets = DEFAULT_PRESETS.slice();
+let presetEditMode = false;
+let presetMessageTimer = null;
+
+function loadPresets() {
+    let loaded = null;
+    try {
+        const raw = localStorage.getItem(PRESETS_STORAGE_KEY);
+        if (raw) {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) {
+                loaded = parsed
+                    .map((v) => parseInt(v, 10))
+                    .filter((v) => Number.isFinite(v) && v > 0 && v <= 24 * 3600);
+            }
+        }
+    } catch (e) {
+        console.warn('プリセットの読み込みに失敗:', e);
+    }
+    presets = (loaded && loaded.length) ? loaded : DEFAULT_PRESETS.slice();
+}
+
+function savePresets() {
+    try {
+        localStorage.setItem(PRESETS_STORAGE_KEY, JSON.stringify(presets));
+    } catch (e) {
+        console.warn('プリセットの保存に失敗:', e);
+    }
+}
+
+function formatPresetLabel(totalSeconds) {
+    const min = Math.floor(totalSeconds / 60);
+    const sec = totalSeconds % 60;
+    if (min && sec) return `${min}分${sec}秒`;
+    if (min) return `${min}分`;
+    return `${sec}秒`;
+}
+
+function showPresetMessage(text) {
+    const el = document.getElementById('preset-message');
+    if (!el) return;
+    el.textContent = text;
+    clearTimeout(presetMessageTimer);
+    if (text) {
+        presetMessageTimer = setTimeout(() => { el.textContent = ''; }, 3000);
+    }
+}
+
+function addPresetFromInput() {
+    const total = readCustomInputSeconds();
+    if (total <= 0) {
+        showPresetMessage('分または秒を入力してください');
+        return;
+    }
+    if (presets.includes(total)) {
+        showPresetMessage(`${formatPresetLabel(total)} はすでに登録されています`);
+        return;
+    }
+    if (presets.length >= MAX_PRESETS) {
+        showPresetMessage(`プリセットは${MAX_PRESETS}個までです`);
+        return;
+    }
+    presets.push(total);
+    presets.sort((a, b) => a - b);
+    savePresets();
+    renderPresets();
+    showPresetMessage(`${formatPresetLabel(total)} を追加しました`);
+}
+
+function removePreset(totalSeconds) {
+    presets = presets.filter((v) => v !== totalSeconds);
+    savePresets();
+    renderPresets();
+    showPresetMessage(`${formatPresetLabel(totalSeconds)} を削除しました`);
+}
+
+function resetPresets() {
+    presets = DEFAULT_PRESETS.slice();
+    savePresets();
+    renderPresets();
+    showPresetMessage('初期値に戻しました');
+}
+
+function setPresetEditMode(on) {
+    presetEditMode = !!on;
+    const toggle = document.getElementById('preset-edit-toggle');
+    const reset = document.getElementById('preset-reset');
+    if (toggle) toggle.textContent = presetEditMode ? '✅ 編集を終わる' : '✏️ プリセットを編集';
+    if (reset) reset.style.display = presetEditMode ? '' : 'none';
+    renderPresets();
+}
+
+// 本体側のプリセットボタンを描画
+function renderMainPresets() {
+    const box = document.getElementById('preset-buttons');
+    if (!box) return;
+    box.textContent = '';
+
+    if (!presets.length) {
+        const empty = document.createElement('span');
+        empty.id = 'preset-empty';
+        empty.textContent = 'プリセットがありません（下で追加できます）';
+        box.appendChild(empty);
+        return;
+    }
+
+    presets.forEach((sec) => {
+        const item = document.createElement('span');
+        item.className = 'preset-item';
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.textContent = formatPresetLabel(sec);
+        btn.addEventListener('click', () => setCountdownSeconds(sec));
+        item.appendChild(btn);
+
+        if (presetEditMode) {
+            const del = document.createElement('button');
+            del.type = 'button';
+            del.className = 'preset-delete';
+            del.textContent = '×';
+            del.title = `${formatPresetLabel(sec)} を削除`;
+            del.addEventListener('click', () => removePreset(sec));
+            item.appendChild(del);
+        }
+
+        box.appendChild(item);
+    });
+}
+
+function renderPresets() {
+    renderMainPresets();
+    renderMiniPresets();
+}
+
 // --- ミニタイマー（Document Picture-in-Picture / 常に最前面に浮かぶ小窓） ---
 // Windows のウィジェットボードには PWA をパッケージ化しないと登録できないため、
 // デスクトップに常駐させたい用途はこちらで代替する。
 let miniWindow = null;
 let miniDisplay = null;
 let miniAlarmBtn = null;
+let miniPresetRow = null;
 
 function isMiniTimerSupported() {
     return 'documentPictureInPicture' in window;
@@ -294,7 +438,8 @@ const MINI_TIMER_CSS = `
         color: #e6f4f8;
         background: linear-gradient(180deg, #051c2c 0%, #073858 60%, #03101c 100%);
         text-align: center;
-        overflow: hidden;
+        overflow-x: hidden;
+        overflow-y: auto;
         user-select: none;
     }
     #mini-display {
@@ -304,7 +449,13 @@ const MINI_TIMER_CSS = `
         margin: 0 0 10px;
         text-shadow: 0 0 14px rgba(120, 220, 240, 0.45);
     }
-    .mini-row { display: flex; gap: 6px; justify-content: center; margin-bottom: 6px; }
+    .mini-row { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-bottom: 6px; }
+    .mini-row button { flex: 1 1 60px; min-width: 60px; }
+    #mini-presets:empty::after {
+        content: 'プリセット未登録';
+        font-size: 0.8em;
+        color: #8fb4c6;
+    }
     button {
         flex: 1;
         padding: 8px 0;
@@ -347,19 +498,12 @@ function buildMiniTimerUI(win) {
     miniDisplay.id = 'mini-display';
     doc.body.appendChild(miniDisplay);
 
-    // プリセット: 押すだけでセット＆スタート
-    const presets = doc.createElement('div');
-    presets.className = 'mini-row';
-    [1, 3, 5].forEach((m) => {
-        const b = doc.createElement('button');
-        b.textContent = `${m}分`;
-        b.addEventListener('click', () => {
-            setCountdown(m);
-            startCountdown();
-        });
-        presets.appendChild(b);
-    });
-    doc.body.appendChild(presets);
+    // プリセット: 押すだけでセット＆スタート（本体と同じ内容を描画）
+    miniPresetRow = doc.createElement('div');
+    miniPresetRow.className = 'mini-row';
+    miniPresetRow.id = 'mini-presets';
+    doc.body.appendChild(miniPresetRow);
+    renderMiniPresets();
 
     const controls = doc.createElement('div');
     controls.className = 'mini-row';
@@ -379,16 +523,77 @@ function buildMiniTimerUI(win) {
     doc.body.appendChild(miniAlarmBtn);
 }
 
+// ミニ窓側のプリセットボタンを描画
+function renderMiniPresets() {
+    if (!miniWindow || !miniPresetRow) return;
+    const doc = miniWindow.document;
+    miniPresetRow.textContent = '';
+    presets.forEach((sec) => {
+        const b = doc.createElement('button');
+        b.type = 'button';
+        b.textContent = formatPresetLabel(sec);
+        b.addEventListener('click', () => {
+            setCountdownSeconds(sec);
+            startCountdown();
+        });
+        miniPresetRow.appendChild(b);
+    });
+}
+
+// --- 本体ウィンドウの退避／復帰 ---
+// JS から OS のウィンドウを最小化する API は存在しないため、
+// インストール済み PWA でのみ使える resizeTo/moveTo で画面の隅に逃がし、
+// 併せて本体の表示をコンパクトに切り替える（タブ表示ではコンパクト化のみ）。
+let savedWindowRect = null;
+
+function stashMainWindow() {
+    if (document.body.classList.contains('compact')) return;
+    document.body.classList.add('compact');
+    try {
+        savedWindowRect = {
+            x: window.screenX,
+            y: window.screenY,
+            w: window.outerWidth,
+            h: window.outerHeight
+        };
+        const w = 320;
+        const h = 120;
+        window.resizeTo(w, h);
+        window.moveTo(
+            Math.max(0, (window.screen.availWidth || 1280) - w - 16),
+            Math.max(0, (window.screen.availHeight || 720) - h - 16)
+        );
+    } catch (e) {
+        // ブラウザのタブで開いている場合はリサイズできない（表示だけコンパクトにする）
+        console.info('本体ウィンドウのリサイズは利用できません:', e);
+    }
+}
+
+function restoreMainWindow() {
+    document.body.classList.remove('compact');
+    if (!savedWindowRect) return;
+    try {
+        window.resizeTo(savedWindowRect.w, savedWindowRect.h);
+        window.moveTo(savedWindowRect.x, savedWindowRect.y);
+    } catch (e) {
+        console.info('本体ウィンドウの復帰に失敗:', e);
+    }
+    savedWindowRect = null;
+}
+
 async function openMiniTimer() {
     if (!isMiniTimerSupported()) return;
     if (miniWindow && !miniWindow.closed) {
         miniWindow.focus();
+        stashMainWindow();
         return;
     }
     try {
+        // プリセットは幅300pxの窓におよそ4個ずつ並ぶので、行数分だけ高さを足す
+        const presetRows = Math.max(1, Math.ceil(presets.length / 4));
         miniWindow = await window.documentPictureInPicture.requestWindow({
             width: 300,
-            height: 220
+            height: 160 + presetRows * 39
         });
     } catch (e) {
         console.warn('ミニタイマーを開けませんでした:', e);
@@ -402,11 +607,16 @@ async function openMiniTimer() {
         miniWindow = null;
         miniDisplay = null;
         miniAlarmBtn = null;
+        miniPresetRow = null;
+        restoreMainWindow();
     });
 
     // 現在の状態を反映
     updateCountdownDisplay();
     showAlarmButton(alarmButtonVisible);
+
+    // 本体の大きい画面を隅に退避する
+    stashMainWindow();
 }
 
 // --- 起動パラメータ（Windows ウィジェット／ジャンプリストからの起動） ---
@@ -474,6 +684,19 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // プリセット（localStorage から復元して描画）
+    loadPresets();
+    renderPresets();
+
+    const addPresetBtn = document.getElementById('add-preset-btn');
+    if (addPresetBtn) addPresetBtn.addEventListener('click', addPresetFromInput);
+
+    const presetToggle = document.getElementById('preset-edit-toggle');
+    if (presetToggle) presetToggle.addEventListener('click', () => setPresetEditMode(!presetEditMode));
+
+    const presetResetBtn = document.getElementById('preset-reset');
+    if (presetResetBtn) presetResetBtn.addEventListener('click', resetPresets);
+
     // ミニタイマー（対応ブラウザのみボタンを出す）
     const miniArea = document.getElementById('mini-timer-area');
     const miniBtn = document.getElementById('open-mini-timer');
@@ -481,6 +704,10 @@ window.addEventListener('DOMContentLoaded', () => {
         miniArea.style.display = '';
         miniBtn.addEventListener('click', openMiniTimer);
     }
+
+    // コンパクト表示からの復帰
+    const restoreBtn = document.getElementById('restore-main');
+    if (restoreBtn) restoreBtn.addEventListener('click', restoreMainWindow);
 
     // ウィジェット等からの起動指定を反映（最後に実行）
     applyLaunchParams();

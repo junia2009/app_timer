@@ -316,3 +316,89 @@ h1 {
 .buttons button:hover {
     background: rgba(60, 140, 180, 0.55);
 }
+
+/* ============================================
+   ユーザー設定プリセット
+   ============================================ */
+#preset-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: center;
+    margin-bottom: 10px;
+}
+.preset-item {
+    display: inline-flex;
+    align-items: center;
+}
+#countdown-timer .preset-item button {
+    margin: 0;
+}
+#countdown-timer .preset-item .preset-delete {
+    margin-left: -6px;
+    padding: 9px 11px;
+    font-size: 0.9em;
+    line-height: 1;
+    color: #ffd0d0;
+    border-color: rgba(255, 140, 140, 0.45);
+    background: rgba(120, 30, 40, 0.5);
+}
+#countdown-timer .preset-item .preset-delete:hover {
+    background: rgba(180, 50, 60, 0.7);
+    box-shadow: 0 0 12px rgba(255, 120, 120, 0.4);
+}
+#preset-empty {
+    font-size: 0.9em;
+    color: #8fb4c6;
+}
+#preset-tools {
+    margin-top: 6px;
+}
+#countdown-timer #preset-tools button {
+    font-size: 0.88em;
+    padding: 6px 14px;
+}
+#preset-message {
+    min-height: 1.2em;
+    margin-top: 6px;
+    font-size: 0.85em;
+    color: #ffb74d;
+}
+
+/* ============================================
+   コンパクト表示（ミニタイマーを浮かべている間）
+   ============================================ */
+#compact-bar {
+    gap: 12px;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.95em;
+    white-space: nowrap;
+}
+#compact-bar button {
+    padding: 6px 16px;
+    font-size: 0.9em;
+    border: 1px solid rgba(140, 220, 240, 0.3);
+    border-radius: 999px;
+    background: rgba(20, 70, 100, 0.55);
+    color: #e6f4f8;
+    cursor: pointer;
+    font-family: inherit;
+}
+#compact-bar button:hover {
+    background: rgba(60, 140, 180, 0.7);
+}
+body.compact .container {
+    max-width: none;
+    margin: 10px;
+    padding: 12px 14px;
+}
+body.compact .container > *:not(#compact-bar) {
+    display: none !important;
+}
+body.compact #compact-bar {
+    display: flex !important;
+}
+body.compact .bubbles {
+    display: none;
+}
