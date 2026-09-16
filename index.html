@@ -24,8 +24,14 @@
         <span></span><span></span><span></span><span></span><span></span>
         <span></span><span></span><span></span><span></span><span></span>
     </div>
-    <!-- コンパクト表示中だけ出る「元のサイズに戻す」ボタン -->
-    <button id="expand-btn" type="button" title="元のサイズに戻す">⤢</button>
+    <!-- ミニタイマー表示中に残す細いバー（クリックで元の画面に戻る） -->
+    <div id="top-bar" title="クリックすると元の画面に戻ります">
+        <img src="icons/icon-192.png" alt="" class="bar-icon">
+        <span class="bar-title">My タイマー</span>
+        <span class="bar-hint">クリックで元に戻す</span>
+        <span class="bar-warn" data-warn="maximized">⚠️ 最大化を解除すると細くなります</span>
+        <span class="bar-warn" data-warn="unsupported">ℹ️ タブ表示のためサイズは変わりません</span>
+    </div>
     <div class="container">
         <h1>My タイマー</h1>
         <div class="version">ver 1.0.0</div>
@@ -45,7 +51,7 @@
                         </div>
 
                     <div id="preset-buttons"></div>
-                    <div id="custom-input-row">
+                    <div>
                         <input type="number" id="custom-minutes" min="0" placeholder="分" style="width:60px;">
                         <input type="number" id="custom-seconds" min="0" max="59" placeholder="秒" style="width:60px;">
                         <button onclick="setCustomCountdown()">セット</button>
@@ -57,30 +63,12 @@
                     </div>
                     <div id="preset-message"></div>
                     <div id="countdown-display" style="font-size:2em; margin:10px 0;">00:00.000</div>
-                    <div id="control-row">
-                        <button onclick="startCountdown()">スタート</button>
-                        <button onclick="stopCountdown()">ストップ</button>
-                        <button onclick="resetCountdown()">リセット</button>
-                    </div>
-                    <div id="compact-hint" style="display:none;">
-                        <div data-hint="maximized">
-                            ⚠️ ウィンドウが最大化されているため小さくできません。<br>
-                            タイトルバーをダブルクリック（または <kbd>Win</kbd>+<kbd>↓</kbd>）で
-                            最大化を解除すると、自動で小さくなります。
-                        </div>
-                        <div data-hint="unsupported">
-                            ℹ️ ブラウザのタブではウィンドウのサイズを変えられません。<br>
-                            アプリとしてインストールして開くと、ウィンドウごと小さくなります。
-                        </div>
-                    </div>
-                    <div id="compact-toggle-area">
-                        <button id="compact-btn" type="button">🔳 コンパクト表示にする</button>
-                        <div id="ontop-note">
-                            📌 最前面に固定したいときは
-                            <a href="https://learn.microsoft.com/ja-jp/windows/powertoys/always-on-top"
-                               target="_blank" rel="noopener">PowerToys</a>
-                            の <kbd>Win</kbd>+<kbd>Ctrl</kbd>+<kbd>T</kbd>（ブラウザ側に固定機能はありません）
-                        </div>
+                    <button onclick="startCountdown()">スタート</button>
+                    <button onclick="stopCountdown()">ストップ</button>
+                    <button onclick="resetCountdown()">リセット</button>
+                    <!-- 常に最前面に浮かぶミニタイマー（対応ブラウザでのみ表示） -->
+                    <div id="mini-timer-area" style="display:none; margin-top:12px;">
+                        <button id="open-mini-timer" type="button">🪟 ミニタイマーを浮かべる</button>
                     </div>
                     <div id="wakelock-status" style="font-size:0.82em; margin-top:10px;"></div>
                 </div>

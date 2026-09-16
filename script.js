@@ -16,13 +16,17 @@ updateJST();
 let flashInterval = null;
 function startFlash() {
     const area = document.getElementById('countdown-timer');
-    if (!area) return;
     let on = false;
     clearInterval(flashInterval);
     flashInterval = setInterval(() => {
-        area.style.background = on ? '#ffe600' : '';
+        const color = on ? '#ffe600' : '';
+        if (area) area.style.background = color;
+        applyMiniFlash(color);
         // 黄色の間は文字を濃色にして読めるようにする
         document.body.classList.toggle('flash-on', on);
+        if (miniWindow && miniWindow.document && miniWindow.document.body) {
+            miniWindow.document.body.classList.toggle('flash-on', on);
+        }
         on = !on;
     }, 300);
 }
@@ -31,7 +35,11 @@ function stopFlash() {
     flashInterval = null;
     const area = document.getElementById('countdown-timer');
     if (area) area.style.background = '';
+    applyMiniFlash('');
     document.body.classList.remove('flash-on');
+    if (miniWindow && miniWindow.document && miniWindow.document.body) {
+        miniWindow.document.body.classList.remove('flash-on');
+    }
 }
 
 // --- Web Audio API によるアラーム音 ---
@@ -153,6 +161,7 @@ function showAlarmButton(show) {
     alarmButtonVisible = !!show;
     const area = document.getElementById('sound-btn-area');
     if (area) area.style.display = show ? '' : 'none';
+    if (miniAlarmBtn) miniAlarmBtn.style.display = show ? '' : 'none';
 }
 
 // アラームを止めて後片付け（本体ボタン・ミニタイマー共通）
@@ -250,6 +259,7 @@ function updateCountdownDisplay() {
     const text = `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}.${String(milli).padStart(3, '0')}`;
     const main = document.getElementById('countdown-display');
     if (main) main.textContent = text;
+    if (miniDisplay) miniDisplay.textContent = text;
 }
 
 function startCountdown() {
@@ -413,19 +423,158 @@ function renderMainPresets() {
 
 function renderPresets() {
     renderMainPresets();
+    renderMiniPresets();
 }
 
-// --- コンパクト表示（アプリのウィンドウ自体を小さなタイマーにする） ---
-// 別ウィンドウを増やさずに済むよう、同じページの表示を切り替える方式。
-// インストール済み PWA の場合はウィンドウのサイズ・位置も合わせて変更する。
-const COMPACT_STORAGE_KEY = 'compactMode';
-const COMPACT_POS_STORAGE_KEY = 'compactWindowPos';
-const COMPACT_WINDOW = { w: 340, h: 330 };
-let compactMode = false;
-let savedWindowRect = null;
-let awaitingUnmaximize = false;
+// --- ミニタイマー（Document Picture-in-Picture / 常に最前面に浮かぶ小窓） ---
+// Windows のウィジェットボードには PWA をパッケージ化しないと登録できないため、
+// デスクトップに常駐させたい用途はこちらで代替する。
+let miniWindow = null;
+let miniDisplay = null;
+let miniAlarmBtn = null;
+let miniPresetRow = null;
 
-// 最大化中かどうか。ウィンドウ枠のぶん実測値は画面サイズより少し小さいので割合で判定する。
+function isMiniTimerSupported() {
+    return 'documentPictureInPicture' in window;
+}
+
+const MINI_TIMER_CSS = `
+    * { box-sizing: border-box; }
+    body {
+        margin: 0;
+        padding: 12px 14px;
+        font-family: 'Noto Sans JP', 'Segoe UI', 'Meiryo', sans-serif;
+        color: #e6f4f8;
+        background: linear-gradient(180deg, #051c2c 0%, #073858 60%, #03101c 100%);
+        text-align: center;
+        overflow-x: hidden;
+        overflow-y: auto;
+        user-select: none;
+    }
+    #mini-display {
+        font-size: 2.2em;
+        font-variant-numeric: tabular-nums;
+        letter-spacing: 0.04em;
+        margin: 0 0 10px;
+        text-shadow: 0 0 14px rgba(120, 220, 240, 0.45);
+    }
+    .mini-row { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-bottom: 6px; }
+    .mini-row button { flex: 1 1 60px; min-width: 60px; }
+    #mini-presets:empty::after {
+        content: 'プリセット未登録';
+        font-size: 0.8em;
+        color: #8fb4c6;
+    }
+    button {
+        flex: 1;
+        padding: 8px 0;
+        font-size: 0.92em;
+        border: 1px solid rgba(140, 220, 240, 0.3);
+        border-radius: 999px;
+        background: rgba(20, 70, 100, 0.55);
+        color: #e6f4f8;
+        cursor: pointer;
+        font-family: inherit;
+        transition: background 0.2s ease;
+    }
+    button:hover { background: rgba(60, 140, 180, 0.7); }
+    button:active { transform: scale(0.97); }
+    body.flash-on #mini-display { color: #2b2600; text-shadow: none; }
+    body.flash-on button { color: #221f06; border-color: rgba(0, 0, 0, 0.3); }
+    #mini-alarm-btn {
+        width: 100%;
+        margin-top: 6px;
+        background: rgba(205, 120, 25, 0.75);
+        border-color: rgba(255, 210, 120, 0.6);
+        font-weight: 700;
+    }
+`;
+
+// 点滅をミニタイマー側にも反映する（color が空文字なら元の背景に戻る）
+function applyMiniFlash(color) {
+    if (!miniWindow || !miniWindow.document || !miniWindow.document.body) return;
+    miniWindow.document.body.style.background = color;
+}
+
+function buildMiniTimerUI(win) {
+    const doc = win.document;
+    doc.documentElement.lang = 'ja';
+    doc.title = 'My タイマー';
+
+    const style = doc.createElement('style');
+    style.textContent = MINI_TIMER_CSS;
+    doc.head.appendChild(style);
+
+    miniDisplay = doc.createElement('div');
+    miniDisplay.id = 'mini-display';
+    doc.body.appendChild(miniDisplay);
+
+    // プリセット: 押すだけでセット＆スタート（本体と同じ内容を描画）
+    miniPresetRow = doc.createElement('div');
+    miniPresetRow.className = 'mini-row';
+    miniPresetRow.id = 'mini-presets';
+    doc.body.appendChild(miniPresetRow);
+    renderMiniPresets();
+
+    const controls = doc.createElement('div');
+    controls.className = 'mini-row';
+    [['▶ 開始', startCountdown], ['⏸ 停止', stopCountdown], ['↺ リセット', resetCountdown]]
+        .forEach(([label, fn]) => {
+            const b = doc.createElement('button');
+            b.textContent = label;
+            b.addEventListener('click', () => fn());
+            controls.appendChild(b);
+        });
+    doc.body.appendChild(controls);
+
+    miniAlarmBtn = doc.createElement('button');
+    miniAlarmBtn.id = 'mini-alarm-btn';
+    miniAlarmBtn.textContent = 'アラームを止める';
+    miniAlarmBtn.addEventListener('click', stopAlarmAndHide);
+    doc.body.appendChild(miniAlarmBtn);
+}
+
+// ミニ窓側のプリセットボタンを描画
+function renderMiniPresets() {
+    if (!miniWindow || !miniPresetRow) return;
+    const doc = miniWindow.document;
+    miniPresetRow.textContent = '';
+    presets.forEach((sec) => {
+        const b = doc.createElement('button');
+        b.type = 'button';
+        b.textContent = formatPresetLabel(sec);
+        b.addEventListener('click', () => {
+            setCountdownSeconds(sec);
+            startCountdown();
+        });
+        miniPresetRow.appendChild(b);
+    });
+}
+
+// --- 本体ウィンドウをトップバーに変形する／元に戻す ---
+// OS のウィンドウを最小化・非表示にする API は無いため、
+// インストール済み PWA でのみ効く resizeTo/moveTo で画面上部の細いバーに変える。
+// ブラウザのタブで開いている場合はリサイズできないので、表示だけバーになる。
+// バーとして見せたい「中身」の高さ。ウィンドウの高さはタイトルバー・枠のぶんを
+// 足して決める（固定値にすると枠に食われて中身が潰れる）。
+const TOP_BAR_CONTENT_HEIGHT = 56;
+let barTargetWindowHeight = 0;
+
+// タイトルバー・枠が占める高さ
+function windowChromeHeight() {
+    const deco = window.outerHeight - window.innerHeight;
+    return Number.isFinite(deco) && deco > 0 ? deco : 0;
+}
+const BAR_WATCH_INTERVAL = 500;
+const BAR_WATCH_MAX_TRIES = 40;          // 約20秒であきらめる
+const BAR_WARN_AFTER_ATTEMPTS = 3;       // 数回試してもダメなときだけ注意書きを出す
+let savedWindowRect = null;
+let barWatcher = null;
+let barTries = 0;
+let barResizeAttempts = 0;
+
+// 最大化中は Chromium が resizeTo を無視する。
+// ウィンドウ枠のぶん実測値は画面サイズより少し小さいので割合で判定する。
 function isWindowMaximized() {
     const availW = window.screen.availWidth || 0;
     const availH = window.screen.availHeight || 0;
@@ -433,151 +582,98 @@ function isWindowMaximized() {
     return window.outerWidth >= availW * 0.97 && window.outerHeight >= availH * 0.93;
 }
 
-function isCompactWindowSize() {
-    return window.outerWidth <= COMPACT_WINDOW.w + 60;
+function isTopBarWindowSize() {
+    if (!barTargetWindowHeight) return false;
+    return window.outerHeight <= barTargetWindowHeight + 40;
 }
 
-// コンパクト時のウィンドウ位置を覚えておく
-// （毎回右下に戻されると、置きたい場所に固定しておけないため）
-function saveCompactWindowPos() {
-    if (!compactMode || !isCompactWindowSize()) return;
-    try {
-        localStorage.setItem(COMPACT_POS_STORAGE_KEY, JSON.stringify({
-            x: window.screenX,
-            y: window.screenY
-        }));
-    } catch (e) {
-        console.warn('ウィンドウ位置の保存に失敗:', e);
-    }
-}
-
-function loadCompactWindowPos() {
-    let pos = null;
-    try {
-        const raw = localStorage.getItem(COMPACT_POS_STORAGE_KEY);
-        if (raw) {
-            const parsed = JSON.parse(raw);
-            if (parsed && Number.isFinite(parsed.x) && Number.isFinite(parsed.y)) pos = parsed;
-        }
-    } catch (e) {
-        console.warn('ウィンドウ位置の読み込みに失敗:', e);
-    }
-    const availW = window.screen.availWidth || 1280;
-    const availH = window.screen.availHeight || 720;
-    // 既定は右下。モニタ構成が変わっても画面外に出ないよう収める
-    if (!pos) {
-        pos = { x: availW - COMPACT_WINDOW.w - 24, y: availH - COMPACT_WINDOW.h - 24 };
-    }
-    return {
-        x: Math.min(Math.max(0, pos.x), Math.max(0, availW - COMPACT_WINDOW.w)),
-        y: Math.min(Math.max(0, pos.y), Math.max(0, availH - COMPACT_WINDOW.h))
-    };
-}
-
-// kind: null（非表示） / 'maximized' / 'unsupported'
-function showCompactHint(kind) {
-    const box = document.getElementById('compact-hint');
-    if (!box) return;
-    box.style.display = kind ? '' : 'none';
-    box.querySelectorAll('[data-hint]').forEach((el) => {
-        el.style.display = el.dataset.hint === kind ? '' : 'none';
+// kind: null（通常の案内） / 'maximized' / 'unsupported'
+function showBarWarn(kind) {
+    const bar = document.getElementById('top-bar');
+    if (!bar) return;
+    bar.querySelectorAll('.bar-warn').forEach((el) => {
+        // CSS 側の既定が display:none なので、表示側は明示的に指定する
+        el.style.display = el.dataset.warn === kind ? 'block' : 'none';
     });
+    const hint = bar.querySelector('.bar-hint');
+    if (hint) hint.style.display = kind ? 'none' : '';
 }
 
-// 縮められるようになるまで一定間隔で試し続ける
-const UNMAXIMIZE_WATCH_INTERVAL = 500;
-const UNMAXIMIZE_WATCH_MAX_TRIES = 40; // 約20秒であきらめる
-const HINT_AFTER_ATTEMPTS = 3; // 数回試してもダメなときだけ注意書きを出す
-let unmaximizeWatcher = null;
-let unmaximizeTries = 0;
-let compactResizeAttempts = 0;
-
-function stopUnmaximizeWatch() {
-    if (unmaximizeWatcher) {
-        clearInterval(unmaximizeWatcher);
-        unmaximizeWatcher = null;
+function stopBarWatch() {
+    if (barWatcher) {
+        clearInterval(barWatcher);
+        barWatcher = null;
     }
-    awaitingUnmaximize = false;
 }
 
-function startUnmaximizeWatch() {
-    if (unmaximizeWatcher) return;
-    awaitingUnmaximize = true;
-    unmaximizeTries = 0;
-    unmaximizeWatcher = setInterval(() => {
-        if (!compactMode) {
-            stopUnmaximizeWatch();
-            showCompactHint(null);
+function startBarWatch() {
+    if (barWatcher) return;
+    barTries = 0;
+    barWatcher = setInterval(() => {
+        if (!document.body.classList.contains('compact')) {
+            stopBarWatch();
+            showBarWarn(null);
             return;
         }
-        if (isCompactWindowSize()) {
-            stopUnmaximizeWatch();
-            showCompactHint(null);
+        if (isTopBarWindowSize()) {
+            stopBarWatch();
+            showBarWarn(null);
             return;
         }
-        if (++unmaximizeTries > UNMAXIMIZE_WATCH_MAX_TRIES) {
-            stopUnmaximizeWatch();
+        if (++barTries > BAR_WATCH_MAX_TRIES) {
+            stopBarWatch();
             return;
         }
-        tryResizeToCompact();
-    }, UNMAXIMIZE_WATCH_INTERVAL);
+        tryResizeToTopBar();
+    }, BAR_WATCH_INTERVAL);
 }
 
-// リサイズを試し、実際に縮んだかを後から検証する
-function tryResizeToCompact() {
-    compactResizeAttempts++;
+// リサイズを試し、実際に細くなったかを後から検証する
+function tryResizeToTopBar() {
+    barResizeAttempts++;
     try {
-        const pos = loadCompactWindowPos();
-        window.resizeTo(COMPACT_WINDOW.w, COMPACT_WINDOW.h);
-        window.moveTo(pos.x, pos.y);
+        window.resizeTo(window.screen.availWidth || 1280, barTargetWindowHeight);
+        window.moveTo(0, 0);
     } catch (e) {
+        // ブラウザのタブで開いている場合はウィンドウ操作ができない
         console.info('ウィンドウのリサイズは利用できません:', e);
     }
     // ウィンドウマネージャへの反映は非同期なので少し待ってから確認する
     setTimeout(() => {
-        if (!compactMode) return;
-        if (isCompactWindowSize()) {
-            stopUnmaximizeWatch();
-            showCompactHint(null);
+        if (!document.body.classList.contains('compact')) return;
+        if (isTopBarWindowSize()) {
+            stopBarWatch();
+            showBarWarn(null);
         } else {
             // すぐ成功することもあるので、数回失敗してから注意書きを出す
-            if (compactResizeAttempts >= HINT_AFTER_ATTEMPTS) {
-                // 最大化中なら解除待ち、そうでなければウィンドウ操作自体が不可（タブ表示）
-                showCompactHint(isWindowMaximized() ? 'maximized' : 'unsupported');
+            if (barResizeAttempts >= BAR_WARN_AFTER_ATTEMPTS) {
+                showBarWarn(isWindowMaximized() ? 'maximized' : 'unsupported');
             }
-            startUnmaximizeWatch();
+            startBarWatch();
         }
     }, 250);
 }
 
-// 閉じる・裏に回るタイミングでも位置を控えておく
-window.addEventListener('pagehide', saveCompactWindowPos);
-document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') saveCompactWindowPos();
-});
-
-async function applyCompactWindowSize() {
-    compactResizeAttempts = 0;
+function shrinkToTopBar() {
+    if (document.body.classList.contains('compact')) return;
+    document.body.classList.add('compact');
+    barResizeAttempts = 0;
+    showBarWarn(null);
+    // 縮める前に枠の高さを測っておく
+    barTargetWindowHeight = windowChromeHeight() + TOP_BAR_CONTENT_HEIGHT;
     savedWindowRect = {
         x: window.screenX,
         y: window.screenY,
         w: window.outerWidth,
         h: window.outerHeight
     };
-    // F11 などのフルスクリーン中はまず解除する
-    if (document.fullscreenElement) {
-        try {
-            await document.exitFullscreen();
-        } catch (e) {
-            console.info('フルスクリーンの解除に失敗:', e);
-        }
-    }
-    tryResizeToCompact();
+    tryResizeToTopBar();
 }
 
-function restoreWindowSize() {
-    stopUnmaximizeWatch();
-    showCompactHint(null);
+function restoreFromTopBar() {
+    document.body.classList.remove('compact');
+    stopBarWatch();
+    showBarWarn(null);
     if (!savedWindowRect) return;
     try {
         window.resizeTo(savedWindowRect.w, savedWindowRect.h);
@@ -588,21 +684,42 @@ function restoreWindowSize() {
     savedWindowRect = null;
 }
 
-function setCompactMode(on) {
-    // 抜ける前に今の位置を控える（compactMode を落とすと保存条件を満たさなくなる）
-    if (!on && compactMode) saveCompactWindowPos();
-    compactMode = !!on;
-    document.body.classList.toggle('compact', compactMode);
+async function openMiniTimer() {
+    if (!isMiniTimerSupported()) return;
+    if (miniWindow && !miniWindow.closed) {
+        miniWindow.focus();
+        shrinkToTopBar();
+        return;
+    }
     try {
-        localStorage.setItem(COMPACT_STORAGE_KEY, compactMode ? 'true' : 'false');
+        // プリセットは幅300pxの窓におよそ4個ずつ並ぶので、行数分だけ高さを足す
+        const presetRows = Math.max(1, Math.ceil(presets.length / 4));
+        miniWindow = await window.documentPictureInPicture.requestWindow({
+            width: 300,
+            height: 160 + presetRows * 39
+        });
     } catch (e) {
-        console.warn('表示モードの保存に失敗:', e);
+        console.warn('ミニタイマーを開けませんでした:', e);
+        miniWindow = null;
+        return;
     }
-    if (compactMode) {
-        applyCompactWindowSize();
-    } else {
-        restoreWindowSize();
-    }
+
+    buildMiniTimerUI(miniWindow);
+
+    miniWindow.addEventListener('pagehide', () => {
+        miniWindow = null;
+        miniDisplay = null;
+        miniAlarmBtn = null;
+        miniPresetRow = null;
+        restoreFromTopBar();
+    });
+
+    // 現在の状態を反映
+    updateCountdownDisplay();
+    showAlarmButton(alarmButtonVisible);
+
+    // 本体は画面上部の細いバーだけ残す
+    shrinkToTopBar();
 }
 
 // --- 起動パラメータ（Windows ウィジェット／ジャンプリストからの起動） ---
@@ -683,20 +800,16 @@ window.addEventListener('DOMContentLoaded', () => {
     const presetResetBtn = document.getElementById('preset-reset');
     if (presetResetBtn) presetResetBtn.addEventListener('click', resetPresets);
 
-    // コンパクト表示の切り替え
-    const compactBtn = document.getElementById('compact-btn');
-    if (compactBtn) compactBtn.addEventListener('click', () => setCompactMode(true));
+    // トップバーはどこを押しても元の画面に戻る
+    const topBar = document.getElementById('top-bar');
+    if (topBar) topBar.addEventListener('click', restoreFromTopBar);
 
-    const expandBtn = document.getElementById('expand-btn');
-    if (expandBtn) expandBtn.addEventListener('click', () => setCompactMode(false));
-
-    // 前回コンパクト表示で終了していたら、その状態で開き直す
-    try {
-        if (localStorage.getItem(COMPACT_STORAGE_KEY) === 'true') {
-            setCompactMode(true);
-        }
-    } catch (e) {
-        console.warn('表示モードの復元に失敗:', e);
+    // ミニタイマー（対応ブラウザのみボタンを出す）
+    const miniArea = document.getElementById('mini-timer-area');
+    const miniBtn = document.getElementById('open-mini-timer');
+    if (miniArea && miniBtn && isMiniTimerSupported()) {
+        miniArea.style.display = '';
+        miniBtn.addEventListener('click', openMiniTimer);
     }
 
     // ウィジェット等からの起動指定を反映（最後に実行）
