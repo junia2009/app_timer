@@ -540,10 +540,47 @@ function renderMiniPresets() {
     });
 }
 
+// --- 本体ウィンドウをトップバーに変形する／元に戻す ---
+// OS のウィンドウを最小化・非表示にする API は無いため、
+// インストール済み PWA でのみ効く resizeTo/moveTo で画面上部の細いバーに変える。
+// ブラウザのタブで開いている場合はリサイズできないので、表示だけバーになる。
+const TOP_BAR_WINDOW_HEIGHT = 100;
+let savedWindowRect = null;
+
+function shrinkToTopBar() {
+    if (document.body.classList.contains('compact')) return;
+    document.body.classList.add('compact');
+    try {
+        savedWindowRect = {
+            x: window.screenX,
+            y: window.screenY,
+            w: window.outerWidth,
+            h: window.outerHeight
+        };
+        window.resizeTo(window.screen.availWidth || 1280, TOP_BAR_WINDOW_HEIGHT);
+        window.moveTo(0, 0);
+    } catch (e) {
+        console.info('ウィンドウのリサイズは利用できません:', e);
+    }
+}
+
+function restoreFromTopBar() {
+    document.body.classList.remove('compact');
+    if (!savedWindowRect) return;
+    try {
+        window.resizeTo(savedWindowRect.w, savedWindowRect.h);
+        window.moveTo(savedWindowRect.x, savedWindowRect.y);
+    } catch (e) {
+        console.info('ウィンドウの復帰に失敗:', e);
+    }
+    savedWindowRect = null;
+}
+
 async function openMiniTimer() {
     if (!isMiniTimerSupported()) return;
     if (miniWindow && !miniWindow.closed) {
         miniWindow.focus();
+        shrinkToTopBar();
         return;
     }
     try {
@@ -566,11 +603,15 @@ async function openMiniTimer() {
         miniDisplay = null;
         miniAlarmBtn = null;
         miniPresetRow = null;
+        restoreFromTopBar();
     });
 
     // 現在の状態を反映
     updateCountdownDisplay();
     showAlarmButton(alarmButtonVisible);
+
+    // 本体は画面上部の細いバーだけ残す
+    shrinkToTopBar();
 }
 
 // --- 起動パラメータ（Windows ウィジェット／ジャンプリストからの起動） ---
@@ -650,6 +691,10 @@ window.addEventListener('DOMContentLoaded', () => {
 
     const presetResetBtn = document.getElementById('preset-reset');
     if (presetResetBtn) presetResetBtn.addEventListener('click', resetPresets);
+
+    // トップバーはどこを押しても元の画面に戻る
+    const topBar = document.getElementById('top-bar');
+    if (topBar) topBar.addEventListener('click', restoreFromTopBar);
 
     // ミニタイマー（対応ブラウザのみボタンを出す）
     const miniArea = document.getElementById('mini-timer-area');
