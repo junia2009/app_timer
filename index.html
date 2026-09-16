@@ -62,6 +62,17 @@
                         <button onclick="stopCountdown()">ストップ</button>
                         <button onclick="resetCountdown()">リセット</button>
                     </div>
+                    <div id="compact-hint" style="display:none;">
+                        <div data-hint="maximized">
+                            ⚠️ ウィンドウが最大化されているため小さくできません。<br>
+                            タイトルバーをダブルクリック（または <kbd>Win</kbd>+<kbd>↓</kbd>）で
+                            最大化を解除すると、自動で小さくなります。
+                        </div>
+                        <div data-hint="unsupported">
+                            ℹ️ ブラウザのタブではウィンドウのサイズを変えられません。<br>
+                            アプリとしてインストールして開くと、ウィンドウごと小さくなります。
+                        </div>
+                    </div>
                     <div id="compact-toggle-area">
                         <button id="compact-btn" type="button">🔳 コンパクト表示にする</button>
                     </div>

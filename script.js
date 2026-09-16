@@ -422,27 +422,120 @@ const COMPACT_STORAGE_KEY = 'compactMode';
 const COMPACT_WINDOW = { w: 340, h: 330 };
 let compactMode = false;
 let savedWindowRect = null;
+let awaitingUnmaximize = false;
 
-function applyCompactWindowSize() {
+// 最大化中かどうか。ウィンドウ枠のぶん実測値は画面サイズより少し小さいので割合で判定する。
+function isWindowMaximized() {
+    const availW = window.screen.availWidth || 0;
+    const availH = window.screen.availHeight || 0;
+    if (!availW || !availH) return false;
+    return window.outerWidth >= availW * 0.97 && window.outerHeight >= availH * 0.93;
+}
+
+function isCompactWindowSize() {
+    return window.outerWidth <= COMPACT_WINDOW.w + 60;
+}
+
+// kind: null（非表示） / 'maximized' / 'unsupported'
+function showCompactHint(kind) {
+    const box = document.getElementById('compact-hint');
+    if (!box) return;
+    box.style.display = kind ? '' : 'none';
+    box.querySelectorAll('[data-hint]').forEach((el) => {
+        el.style.display = el.dataset.hint === kind ? '' : 'none';
+    });
+}
+
+// 縮められるようになるまで一定間隔で試し続ける
+const UNMAXIMIZE_WATCH_INTERVAL = 500;
+const UNMAXIMIZE_WATCH_MAX_TRIES = 40; // 約20秒であきらめる
+const HINT_AFTER_ATTEMPTS = 3; // 数回試してもダメなときだけ注意書きを出す
+let unmaximizeWatcher = null;
+let unmaximizeTries = 0;
+let compactResizeAttempts = 0;
+
+function stopUnmaximizeWatch() {
+    if (unmaximizeWatcher) {
+        clearInterval(unmaximizeWatcher);
+        unmaximizeWatcher = null;
+    }
+    awaitingUnmaximize = false;
+}
+
+function startUnmaximizeWatch() {
+    if (unmaximizeWatcher) return;
+    awaitingUnmaximize = true;
+    unmaximizeTries = 0;
+    unmaximizeWatcher = setInterval(() => {
+        if (!compactMode) {
+            stopUnmaximizeWatch();
+            showCompactHint(null);
+            return;
+        }
+        if (isCompactWindowSize()) {
+            stopUnmaximizeWatch();
+            showCompactHint(null);
+            return;
+        }
+        if (++unmaximizeTries > UNMAXIMIZE_WATCH_MAX_TRIES) {
+            stopUnmaximizeWatch();
+            return;
+        }
+        tryResizeToCompact();
+    }, UNMAXIMIZE_WATCH_INTERVAL);
+}
+
+// リサイズを試し、実際に縮んだかを後から検証する
+function tryResizeToCompact() {
+    compactResizeAttempts++;
     try {
-        savedWindowRect = {
-            x: window.screenX,
-            y: window.screenY,
-            w: window.outerWidth,
-            h: window.outerHeight
-        };
         window.resizeTo(COMPACT_WINDOW.w, COMPACT_WINDOW.h);
         window.moveTo(
             Math.max(0, (window.screen.availWidth || 1280) - COMPACT_WINDOW.w - 24),
             Math.max(0, (window.screen.availHeight || 720) - COMPACT_WINDOW.h - 24)
         );
     } catch (e) {
-        // ブラウザのタブで開いている場合はウィンドウ操作ができない（表示だけ切り替わる）
         console.info('ウィンドウのリサイズは利用できません:', e);
     }
+    // ウィンドウマネージャへの反映は非同期なので少し待ってから確認する
+    setTimeout(() => {
+        if (!compactMode) return;
+        if (isCompactWindowSize()) {
+            stopUnmaximizeWatch();
+            showCompactHint(null);
+        } else {
+            // すぐ成功することもあるので、数回失敗してから注意書きを出す
+            if (compactResizeAttempts >= HINT_AFTER_ATTEMPTS) {
+                // 最大化中なら解除待ち、そうでなければウィンドウ操作自体が不可（タブ表示）
+                showCompactHint(isWindowMaximized() ? 'maximized' : 'unsupported');
+            }
+            startUnmaximizeWatch();
+        }
+    }, 250);
+}
+
+async function applyCompactWindowSize() {
+    compactResizeAttempts = 0;
+    savedWindowRect = {
+        x: window.screenX,
+        y: window.screenY,
+        w: window.outerWidth,
+        h: window.outerHeight
+    };
+    // F11 などのフルスクリーン中はまず解除する
+    if (document.fullscreenElement) {
+        try {
+            await document.exitFullscreen();
+        } catch (e) {
+            console.info('フルスクリーンの解除に失敗:', e);
+        }
+    }
+    tryResizeToCompact();
 }
 
 function restoreWindowSize() {
+    stopUnmaximizeWatch();
+    showCompactHint(null);
     if (!savedWindowRect) return;
     try {
         window.resizeTo(savedWindowRect.w, savedWindowRect.h);
@@ -453,8 +546,7 @@ function restoreWindowSize() {
     savedWindowRect = null;
 }
 
-function setCompactMode(on, options) {
-    const resizeWindow = !options || options.resizeWindow !== false;
+function setCompactMode(on) {
     compactMode = !!on;
     document.body.classList.toggle('compact', compactMode);
     try {
@@ -462,7 +554,6 @@ function setCompactMode(on, options) {
     } catch (e) {
         console.warn('表示モードの保存に失敗:', e);
     }
-    if (!resizeWindow) return;
     if (compactMode) {
         applyCompactWindowSize();
     } else {
