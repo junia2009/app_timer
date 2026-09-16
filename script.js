@@ -16,12 +16,13 @@ updateJST();
 let flashInterval = null;
 function startFlash() {
     const area = document.getElementById('countdown-timer');
+    if (!area) return;
     let on = false;
     clearInterval(flashInterval);
     flashInterval = setInterval(() => {
-        const color = on ? '#ffe600' : '';
-        if (area) area.style.background = color;
-        applyMiniFlash(color);
+        area.style.background = on ? '#ffe600' : '';
+        // 黄色の間は文字を濃色にして読めるようにする
+        document.body.classList.toggle('flash-on', on);
         on = !on;
     }, 300);
 }
@@ -30,7 +31,7 @@ function stopFlash() {
     flashInterval = null;
     const area = document.getElementById('countdown-timer');
     if (area) area.style.background = '';
-    applyMiniFlash('');
+    document.body.classList.remove('flash-on');
 }
 
 // --- Web Audio API によるアラーム音 ---
@@ -152,7 +153,6 @@ function showAlarmButton(show) {
     alarmButtonVisible = !!show;
     const area = document.getElementById('sound-btn-area');
     if (area) area.style.display = show ? '' : 'none';
-    if (miniAlarmBtn) miniAlarmBtn.style.display = show ? '' : 'none';
 }
 
 // アラームを止めて後片付け（本体ボタン・ミニタイマー共通）
@@ -250,7 +250,6 @@ function updateCountdownDisplay() {
     const text = `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}.${String(milli).padStart(3, '0')}`;
     const main = document.getElementById('countdown-display');
     if (main) main.textContent = text;
-    if (miniDisplay) miniDisplay.textContent = text;
 }
 
 function startCountdown() {
@@ -414,142 +413,17 @@ function renderMainPresets() {
 
 function renderPresets() {
     renderMainPresets();
-    renderMiniPresets();
 }
 
-// --- ミニタイマー（Document Picture-in-Picture / 常に最前面に浮かぶ小窓） ---
-// Windows のウィジェットボードには PWA をパッケージ化しないと登録できないため、
-// デスクトップに常駐させたい用途はこちらで代替する。
-let miniWindow = null;
-let miniDisplay = null;
-let miniAlarmBtn = null;
-let miniPresetRow = null;
-
-function isMiniTimerSupported() {
-    return 'documentPictureInPicture' in window;
-}
-
-const MINI_TIMER_CSS = `
-    * { box-sizing: border-box; }
-    body {
-        margin: 0;
-        padding: 12px 14px;
-        font-family: 'Noto Sans JP', 'Segoe UI', 'Meiryo', sans-serif;
-        color: #e6f4f8;
-        background: linear-gradient(180deg, #051c2c 0%, #073858 60%, #03101c 100%);
-        text-align: center;
-        overflow-x: hidden;
-        overflow-y: auto;
-        user-select: none;
-    }
-    #mini-display {
-        font-size: 2.2em;
-        font-variant-numeric: tabular-nums;
-        letter-spacing: 0.04em;
-        margin: 0 0 10px;
-        text-shadow: 0 0 14px rgba(120, 220, 240, 0.45);
-    }
-    .mini-row { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-bottom: 6px; }
-    .mini-row button { flex: 1 1 60px; min-width: 60px; }
-    #mini-presets:empty::after {
-        content: 'プリセット未登録';
-        font-size: 0.8em;
-        color: #8fb4c6;
-    }
-    button {
-        flex: 1;
-        padding: 8px 0;
-        font-size: 0.92em;
-        border: 1px solid rgba(140, 220, 240, 0.3);
-        border-radius: 999px;
-        background: rgba(20, 70, 100, 0.55);
-        color: #e6f4f8;
-        cursor: pointer;
-        font-family: inherit;
-        transition: background 0.2s ease;
-    }
-    button:hover { background: rgba(60, 140, 180, 0.7); }
-    button:active { transform: scale(0.97); }
-    #mini-alarm-btn {
-        width: 100%;
-        margin-top: 6px;
-        background: rgba(205, 120, 25, 0.75);
-        border-color: rgba(255, 210, 120, 0.6);
-        font-weight: 700;
-    }
-`;
-
-// 点滅をミニタイマー側にも反映する（color が空文字なら元の背景に戻る）
-function applyMiniFlash(color) {
-    if (!miniWindow || !miniWindow.document || !miniWindow.document.body) return;
-    miniWindow.document.body.style.background = color;
-}
-
-function buildMiniTimerUI(win) {
-    const doc = win.document;
-    doc.documentElement.lang = 'ja';
-    doc.title = 'My タイマー';
-
-    const style = doc.createElement('style');
-    style.textContent = MINI_TIMER_CSS;
-    doc.head.appendChild(style);
-
-    miniDisplay = doc.createElement('div');
-    miniDisplay.id = 'mini-display';
-    doc.body.appendChild(miniDisplay);
-
-    // プリセット: 押すだけでセット＆スタート（本体と同じ内容を描画）
-    miniPresetRow = doc.createElement('div');
-    miniPresetRow.className = 'mini-row';
-    miniPresetRow.id = 'mini-presets';
-    doc.body.appendChild(miniPresetRow);
-    renderMiniPresets();
-
-    const controls = doc.createElement('div');
-    controls.className = 'mini-row';
-    [['▶ 開始', startCountdown], ['⏸ 停止', stopCountdown], ['↺ リセット', resetCountdown]]
-        .forEach(([label, fn]) => {
-            const b = doc.createElement('button');
-            b.textContent = label;
-            b.addEventListener('click', () => fn());
-            controls.appendChild(b);
-        });
-    doc.body.appendChild(controls);
-
-    miniAlarmBtn = doc.createElement('button');
-    miniAlarmBtn.id = 'mini-alarm-btn';
-    miniAlarmBtn.textContent = 'アラームを止める';
-    miniAlarmBtn.addEventListener('click', stopAlarmAndHide);
-    doc.body.appendChild(miniAlarmBtn);
-}
-
-// ミニ窓側のプリセットボタンを描画
-function renderMiniPresets() {
-    if (!miniWindow || !miniPresetRow) return;
-    const doc = miniWindow.document;
-    miniPresetRow.textContent = '';
-    presets.forEach((sec) => {
-        const b = doc.createElement('button');
-        b.type = 'button';
-        b.textContent = formatPresetLabel(sec);
-        b.addEventListener('click', () => {
-            setCountdownSeconds(sec);
-            startCountdown();
-        });
-        miniPresetRow.appendChild(b);
-    });
-}
-
-// --- 本体ウィンドウをトップバーに変形する／元に戻す ---
-// OS のウィンドウを最小化・非表示にする API は無いため、
-// インストール済み PWA でのみ効く resizeTo/moveTo で画面上部の細いバーに変える。
-// ブラウザのタブで開いている場合はリサイズできないので、表示だけバーになる。
-const TOP_BAR_WINDOW_HEIGHT = 100;
+// --- コンパクト表示（アプリのウィンドウ自体を小さなタイマーにする） ---
+// 別ウィンドウを増やさずに済むよう、同じページの表示を切り替える方式。
+// インストール済み PWA の場合はウィンドウのサイズ・位置も合わせて変更する。
+const COMPACT_STORAGE_KEY = 'compactMode';
+const COMPACT_WINDOW = { w: 340, h: 330 };
+let compactMode = false;
 let savedWindowRect = null;
 
-function shrinkToTopBar() {
-    if (document.body.classList.contains('compact')) return;
-    document.body.classList.add('compact');
+function applyCompactWindowSize() {
     try {
         savedWindowRect = {
             x: window.screenX,
@@ -557,15 +431,18 @@ function shrinkToTopBar() {
             w: window.outerWidth,
             h: window.outerHeight
         };
-        window.resizeTo(window.screen.availWidth || 1280, TOP_BAR_WINDOW_HEIGHT);
-        window.moveTo(0, 0);
+        window.resizeTo(COMPACT_WINDOW.w, COMPACT_WINDOW.h);
+        window.moveTo(
+            Math.max(0, (window.screen.availWidth || 1280) - COMPACT_WINDOW.w - 24),
+            Math.max(0, (window.screen.availHeight || 720) - COMPACT_WINDOW.h - 24)
+        );
     } catch (e) {
+        // ブラウザのタブで開いている場合はウィンドウ操作ができない（表示だけ切り替わる）
         console.info('ウィンドウのリサイズは利用できません:', e);
     }
 }
 
-function restoreFromTopBar() {
-    document.body.classList.remove('compact');
+function restoreWindowSize() {
     if (!savedWindowRect) return;
     try {
         window.resizeTo(savedWindowRect.w, savedWindowRect.h);
@@ -576,42 +453,21 @@ function restoreFromTopBar() {
     savedWindowRect = null;
 }
 
-async function openMiniTimer() {
-    if (!isMiniTimerSupported()) return;
-    if (miniWindow && !miniWindow.closed) {
-        miniWindow.focus();
-        shrinkToTopBar();
-        return;
-    }
+function setCompactMode(on, options) {
+    const resizeWindow = !options || options.resizeWindow !== false;
+    compactMode = !!on;
+    document.body.classList.toggle('compact', compactMode);
     try {
-        // プリセットは幅300pxの窓におよそ4個ずつ並ぶので、行数分だけ高さを足す
-        const presetRows = Math.max(1, Math.ceil(presets.length / 4));
-        miniWindow = await window.documentPictureInPicture.requestWindow({
-            width: 300,
-            height: 160 + presetRows * 39
-        });
+        localStorage.setItem(COMPACT_STORAGE_KEY, compactMode ? 'true' : 'false');
     } catch (e) {
-        console.warn('ミニタイマーを開けませんでした:', e);
-        miniWindow = null;
-        return;
+        console.warn('表示モードの保存に失敗:', e);
     }
-
-    buildMiniTimerUI(miniWindow);
-
-    miniWindow.addEventListener('pagehide', () => {
-        miniWindow = null;
-        miniDisplay = null;
-        miniAlarmBtn = null;
-        miniPresetRow = null;
-        restoreFromTopBar();
-    });
-
-    // 現在の状態を反映
-    updateCountdownDisplay();
-    showAlarmButton(alarmButtonVisible);
-
-    // 本体は画面上部の細いバーだけ残す
-    shrinkToTopBar();
+    if (!resizeWindow) return;
+    if (compactMode) {
+        applyCompactWindowSize();
+    } else {
+        restoreWindowSize();
+    }
 }
 
 // --- 起動パラメータ（Windows ウィジェット／ジャンプリストからの起動） ---
@@ -692,16 +548,20 @@ window.addEventListener('DOMContentLoaded', () => {
     const presetResetBtn = document.getElementById('preset-reset');
     if (presetResetBtn) presetResetBtn.addEventListener('click', resetPresets);
 
-    // トップバーはどこを押しても元の画面に戻る
-    const topBar = document.getElementById('top-bar');
-    if (topBar) topBar.addEventListener('click', restoreFromTopBar);
+    // コンパクト表示の切り替え
+    const compactBtn = document.getElementById('compact-btn');
+    if (compactBtn) compactBtn.addEventListener('click', () => setCompactMode(true));
 
-    // ミニタイマー（対応ブラウザのみボタンを出す）
-    const miniArea = document.getElementById('mini-timer-area');
-    const miniBtn = document.getElementById('open-mini-timer');
-    if (miniArea && miniBtn && isMiniTimerSupported()) {
-        miniArea.style.display = '';
-        miniBtn.addEventListener('click', openMiniTimer);
+    const expandBtn = document.getElementById('expand-btn');
+    if (expandBtn) expandBtn.addEventListener('click', () => setCompactMode(false));
+
+    // 前回コンパクト表示で終了していたら、その状態で開き直す
+    try {
+        if (localStorage.getItem(COMPACT_STORAGE_KEY) === 'true') {
+            setCompactMode(true);
+        }
+    } catch (e) {
+        console.warn('表示モードの復元に失敗:', e);
     }
 
     // ウィジェット等からの起動指定を反映（最後に実行）
