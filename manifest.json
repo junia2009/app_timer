@@ -1,0 +1,87 @@
+{
+  "id": "./",
+  "name": "My タイマー",
+  "short_name": "タイマー",
+  "description": "日本標準時（JST）表示とカウントダウン機能付きのシンプルなタイマー。Windows にインストールしてウィジェットからワンタップで起動できます。",
+  "lang": "ja",
+  "dir": "ltr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#051c2c",
+  "theme_color": "#062b45",
+  "categories": ["productivity", "utilities"],
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "1分タイマーを開始",
+      "short_name": "1分",
+      "url": "./?m=1&autostart=1",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "3分タイマーを開始",
+      "short_name": "3分",
+      "url": "./?m=3&autostart=1",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "5分タイマーを開始",
+      "short_name": "5分",
+      "url": "./?m=5&autostart=1",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ],
+  "widgets": [
+    {
+      "name": "My タイマー",
+      "short_name": "タイマー",
+      "description": "1分・3分・5分のカウントダウンをワンタップで開始できます。",
+      "tag": "apptimer",
+      "template": "apptimer-launcher",
+      "ms_ac_template": "widget/timer-card.json",
+      "data": "widget/timer-data.json",
+      "type": "application/json",
+      "auth": false,
+      "update": 86400,
+      "multiple": false,
+      "icons": [
+        { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" }
+      ],
+      "screenshots": [
+        {
+          "src": "widget/screenshot-widget.png",
+          "sizes": "600x400",
+          "type": "image/png",
+          "label": "タイマーを素早く開始できるウィジェット"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,75 @@
+{
+  "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+  "type": "AdaptiveCard",
+  "version": "1.5",
+  "body": [
+    {
+      "type": "ColumnSet",
+      "columns": [
+        {
+          "type": "Column",
+          "width": "auto",
+          "verticalContentAlignment": "center",
+          "items": [
+            {
+              "type": "Image",
+              "url": "${iconUrl}",
+              "width": "40px",
+              "altText": "My タイマー"
+            }
+          ]
+        },
+        {
+          "type": "Column",
+          "width": "stretch",
+          "verticalContentAlignment": "center",
+          "items": [
+            {
+              "type": "TextBlock",
+              "text": "${title}",
+              "size": "Medium",
+              "weight": "Bolder",
+              "wrap": true
+            },
+            {
+              "type": "TextBlock",
+              "text": "${subtitle}",
+              "size": "Small",
+              "isSubtle": true,
+              "spacing": "None",
+              "wrap": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "ActionSet",
+      "spacing": "Medium",
+      "actions": [
+        {
+          "type": "Action.OpenUrl",
+          "title": "1分",
+          "url": "${appUrl}?m=1&autostart=1"
+        },
+        {
+          "type": "Action.OpenUrl",
+          "title": "3分",
+          "url": "${appUrl}?m=3&autostart=1"
+        },
+        {
+          "type": "Action.OpenUrl",
+          "title": "5分",
+          "url": "${appUrl}?m=5&autostart=1"
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "type": "Action.OpenUrl",
+      "title": "アプリを開く",
+      "url": "${appUrl}"
+    }
+  ]
+}

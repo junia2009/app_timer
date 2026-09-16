@@ -256,6 +256,40 @@ function startCountdown() {
     }, 10);
 }
 
+// --- 起動パラメータ（Windows ウィジェット／ジャンプリストからの起動） ---
+// 例: ./?m=3&autostart=1  → 3分にセットして即スタート
+function applyLaunchParams() {
+    const params = new URLSearchParams(location.search);
+    const rawMin = params.get('m') ?? params.get('minutes');
+    const rawSec = params.get('s') ?? params.get('seconds');
+    if (rawMin === null && rawSec === null) return;
+
+    const min = parseInt(rawMin, 10) || 0;
+    const sec = parseInt(rawSec, 10) || 0;
+    const totalSec = min * 60 + sec;
+    if (totalSec <= 0) return;
+
+    // 入力欄にも反映しておく
+    const minEl = document.getElementById('custom-minutes');
+    const secEl = document.getElementById('custom-seconds');
+    if (minEl) minEl.value = min || '';
+    if (secEl) secEl.value = sec || '';
+
+    countdownTime = totalSec * 1000;
+    countdownRemaining = countdownTime;
+    countdownRunning = false;
+    clearInterval(countdownInterval);
+    updateCountdownDisplay();
+
+    const autostart = params.get('autostart');
+    if (autostart === '1' || autostart === 'true') {
+        // インストール済みPWAでは自動再生が許可されることが多いが、
+        // ブロックされてもカウントダウン自体は続行する
+        try { ensureAudioContext(); } catch (e) { /* noop */ }
+        startCountdown();
+    }
+}
+
 // 初期化
 window.addEventListener('DOMContentLoaded', () => {
     // アラーム停止ボタン
@@ -291,6 +325,9 @@ window.addEventListener('DOMContentLoaded', () => {
             if (earphoneMode) ensureAudioContext();
         });
     }
+
+    // ウィジェット等からの起動指定を反映（最後に実行）
+    applyLaunchParams();
 });
 
 function stopCountdown() {

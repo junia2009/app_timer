@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My タイマー</title>
+    <meta name="description" content="日本標準時（JST）表示とカウントダウン機能付きのシンプルなタイマー。Windows にインストールしてウィジェットから起動できます。">
+    <meta name="theme-color" content="#062b45">
+    <!-- PWA マニフェスト（Windows へのインストール／ウィジェット登録に必要） -->
+    <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -59,5 +63,15 @@
                 </div>
     </div>
     <script src="script.js"></script>
+    <script>
+        // Service Worker 登録（PWA インストールとウィジェットの前提条件）
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js').catch((e) => {
+                    console.warn('Service Worker 登録に失敗:', e);
+                });
+            });
+        }
+    </script>
 </body>
 </html>
