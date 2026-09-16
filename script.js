@@ -16,17 +16,21 @@ updateJST();
 let flashInterval = null;
 function startFlash() {
     const area = document.getElementById('countdown-timer');
-    if (!area) return;
     let on = false;
+    clearInterval(flashInterval);
     flashInterval = setInterval(() => {
-        area.style.background = on ? '#ffe600' : '';
+        const color = on ? '#ffe600' : '';
+        if (area) area.style.background = color;
+        applyMiniFlash(color);
         on = !on;
     }, 300);
 }
 function stopFlash() {
     clearInterval(flashInterval);
+    flashInterval = null;
     const area = document.getElementById('countdown-timer');
     if (area) area.style.background = '';
+    applyMiniFlash('');
 }
 
 // --- Web Audio API によるアラーム音 ---
@@ -142,6 +146,22 @@ function stopAllAlarm() {
     stopVibration();
 }
 
+// アラーム停止ボタンの表示（本体・ミニタイマーの両方をまとめて切り替える）
+let alarmButtonVisible = false;
+function showAlarmButton(show) {
+    alarmButtonVisible = !!show;
+    const area = document.getElementById('sound-btn-area');
+    if (area) area.style.display = show ? '' : 'none';
+    if (miniAlarmBtn) miniAlarmBtn.style.display = show ? '' : 'none';
+}
+
+// アラームを止めて後片付け（本体ボタン・ミニタイマー共通）
+function stopAlarmAndHide() {
+    stopAllAlarm();
+    releaseWakeLock();
+    showAlarmButton(false);
+}
+
 // --- Wake Lock API（画面スリープ防止） ---
 let wakeLock = null;
 
@@ -205,9 +225,7 @@ function setCountdown(minutes) {
     countdownRunning = false;
     clearInterval(countdownInterval);
     updateCountdownDisplay();
-    // 音ボタン非表示
-    const area = document.getElementById('sound-btn-area');
-    if (area) area.style.display = 'none';
+    showAlarmButton(false);
 }
 
 function setCustomCountdown() {
@@ -218,9 +236,7 @@ function setCustomCountdown() {
     countdownRunning = false;
     clearInterval(countdownInterval);
     updateCountdownDisplay();
-    // 音ボタン非表示
-    const area = document.getElementById('sound-btn-area');
-    if (area) area.style.display = 'none';
+    showAlarmButton(false);
 }
 
 function updateCountdownDisplay() {
@@ -228,12 +244,15 @@ function updateCountdownDisplay() {
     let min = Math.floor(ms / 60000);
     let sec = Math.floor((ms % 60000) / 1000);
     let milli = ms % 1000;
-    document.getElementById('countdown-display').textContent =
-        `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}.${String(milli).padStart(3, '0')}`;
+    const text = `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}.${String(milli).padStart(3, '0')}`;
+    const main = document.getElementById('countdown-display');
+    if (main) main.textContent = text;
+    if (miniDisplay) miniDisplay.textContent = text;
 }
 
 function startCountdown() {
     if (countdownRunning || countdownRemaining <= 0) return;
+    clearInterval(countdownInterval); // 取りこぼしたタイマーが二重に走らないように
     countdownRunning = true;
     requestWakeLock();
     let last = performance.now();
@@ -247,13 +266,147 @@ function startCountdown() {
             updateCountdownDisplay();
             stopCountdown();
             // アラーム通知開始、停止ボタン表示
-            const area = document.getElementById('sound-btn-area');
-            if (area) area.style.display = '';
+            showAlarmButton(true);
             triggerAlarm();
         } else {
             updateCountdownDisplay();
         }
     }, 10);
+}
+
+// --- ミニタイマー（Document Picture-in-Picture / 常に最前面に浮かぶ小窓） ---
+// Windows のウィジェットボードには PWA をパッケージ化しないと登録できないため、
+// デスクトップに常駐させたい用途はこちらで代替する。
+let miniWindow = null;
+let miniDisplay = null;
+let miniAlarmBtn = null;
+
+function isMiniTimerSupported() {
+    return 'documentPictureInPicture' in window;
+}
+
+const MINI_TIMER_CSS = `
+    * { box-sizing: border-box; }
+    body {
+        margin: 0;
+        padding: 12px 14px;
+        font-family: 'Noto Sans JP', 'Segoe UI', 'Meiryo', sans-serif;
+        color: #e6f4f8;
+        background: linear-gradient(180deg, #051c2c 0%, #073858 60%, #03101c 100%);
+        text-align: center;
+        overflow: hidden;
+        user-select: none;
+    }
+    #mini-display {
+        font-size: 2.2em;
+        font-variant-numeric: tabular-nums;
+        letter-spacing: 0.04em;
+        margin: 0 0 10px;
+        text-shadow: 0 0 14px rgba(120, 220, 240, 0.45);
+    }
+    .mini-row { display: flex; gap: 6px; justify-content: center; margin-bottom: 6px; }
+    button {
+        flex: 1;
+        padding: 8px 0;
+        font-size: 0.92em;
+        border: 1px solid rgba(140, 220, 240, 0.3);
+        border-radius: 999px;
+        background: rgba(20, 70, 100, 0.55);
+        color: #e6f4f8;
+        cursor: pointer;
+        font-family: inherit;
+        transition: background 0.2s ease;
+    }
+    button:hover { background: rgba(60, 140, 180, 0.7); }
+    button:active { transform: scale(0.97); }
+    #mini-alarm-btn {
+        width: 100%;
+        margin-top: 6px;
+        background: rgba(205, 120, 25, 0.75);
+        border-color: rgba(255, 210, 120, 0.6);
+        font-weight: 700;
+    }
+`;
+
+// 点滅をミニタイマー側にも反映する（color が空文字なら元の背景に戻る）
+function applyMiniFlash(color) {
+    if (!miniWindow || !miniWindow.document || !miniWindow.document.body) return;
+    miniWindow.document.body.style.background = color;
+}
+
+function buildMiniTimerUI(win) {
+    const doc = win.document;
+    doc.documentElement.lang = 'ja';
+    doc.title = 'My タイマー';
+
+    const style = doc.createElement('style');
+    style.textContent = MINI_TIMER_CSS;
+    doc.head.appendChild(style);
+
+    miniDisplay = doc.createElement('div');
+    miniDisplay.id = 'mini-display';
+    doc.body.appendChild(miniDisplay);
+
+    // プリセット: 押すだけでセット＆スタート
+    const presets = doc.createElement('div');
+    presets.className = 'mini-row';
+    [1, 3, 5].forEach((m) => {
+        const b = doc.createElement('button');
+        b.textContent = `${m}分`;
+        b.addEventListener('click', () => {
+            setCountdown(m);
+            startCountdown();
+        });
+        presets.appendChild(b);
+    });
+    doc.body.appendChild(presets);
+
+    const controls = doc.createElement('div');
+    controls.className = 'mini-row';
+    [['▶ 開始', startCountdown], ['⏸ 停止', stopCountdown], ['↺ リセット', resetCountdown]]
+        .forEach(([label, fn]) => {
+            const b = doc.createElement('button');
+            b.textContent = label;
+            b.addEventListener('click', () => fn());
+            controls.appendChild(b);
+        });
+    doc.body.appendChild(controls);
+
+    miniAlarmBtn = doc.createElement('button');
+    miniAlarmBtn.id = 'mini-alarm-btn';
+    miniAlarmBtn.textContent = 'アラームを止める';
+    miniAlarmBtn.addEventListener('click', stopAlarmAndHide);
+    doc.body.appendChild(miniAlarmBtn);
+}
+
+async function openMiniTimer() {
+    if (!isMiniTimerSupported()) return;
+    if (miniWindow && !miniWindow.closed) {
+        miniWindow.focus();
+        return;
+    }
+    try {
+        miniWindow = await window.documentPictureInPicture.requestWindow({
+            width: 300,
+            height: 220
+        });
+    } catch (e) {
+        console.warn('ミニタイマーを開けませんでした:', e);
+        miniWindow = null;
+        return;
+    }
+
+    buildMiniTimerUI(miniWindow);
+
+    miniWindow.addEventListener('pagehide', () => {
+        miniWindow = null;
+        miniDisplay = null;
+        miniAlarmBtn = null;
+    });
+
+    // 現在の状態を反映
+    updateCountdownDisplay();
+    showAlarmButton(alarmButtonVisible);
 }
 
 // --- 起動パラメータ（Windows ウィジェット／ジャンプリストからの起動） ---
@@ -295,12 +448,7 @@ window.addEventListener('DOMContentLoaded', () => {
     // アラーム停止ボタン
     const btn = document.getElementById('play-sound-btn');
     if (btn) {
-        btn.addEventListener('click', () => {
-            stopAllAlarm();
-            releaseWakeLock();
-            const area = document.getElementById('sound-btn-area');
-            if (area) area.style.display = 'none';
-        });
+        btn.addEventListener('click', stopAlarmAndHide);
     }
 
     // Wake Lock 初期表示
@@ -326,6 +474,14 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // ミニタイマー（対応ブラウザのみボタンを出す）
+    const miniArea = document.getElementById('mini-timer-area');
+    const miniBtn = document.getElementById('open-mini-timer');
+    if (miniArea && miniBtn && isMiniTimerSupported()) {
+        miniArea.style.display = '';
+        miniBtn.addEventListener('click', openMiniTimer);
+    }
+
     // ウィジェット等からの起動指定を反映（最後に実行）
     applyLaunchParams();
 });
@@ -341,6 +497,5 @@ function resetCountdown() {
     stopCountdown();
     releaseWakeLock();
     stopAllAlarm();
-    const area = document.getElementById('sound-btn-area');
-    if (area) area.style.display = 'none';
+    showAlarmButton(false);
 }

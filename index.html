@@ -56,6 +56,10 @@
                     <button onclick="startCountdown()">スタート</button>
                     <button onclick="stopCountdown()">ストップ</button>
                     <button onclick="resetCountdown()">リセット</button>
+                    <!-- 常に最前面に浮かぶミニタイマー（対応ブラウザでのみ表示） -->
+                    <div id="mini-timer-area" style="display:none; margin-top:12px;">
+                        <button id="open-mini-timer" type="button">🪟 ミニタイマーを浮かべる</button>
+                    </div>
                     <div id="wakelock-status" style="font-size:0.82em; margin-top:10px;"></div>
                 </div>
                 <div class="buttons">
