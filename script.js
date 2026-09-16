@@ -540,52 +540,10 @@ function renderMiniPresets() {
     });
 }
 
-// --- 本体ウィンドウの退避／復帰 ---
-// JS から OS のウィンドウを最小化する API は存在しないため、
-// インストール済み PWA でのみ使える resizeTo/moveTo で画面の隅に逃がし、
-// 併せて本体の表示をコンパクトに切り替える（タブ表示ではコンパクト化のみ）。
-let savedWindowRect = null;
-
-function stashMainWindow() {
-    if (document.body.classList.contains('compact')) return;
-    document.body.classList.add('compact');
-    try {
-        savedWindowRect = {
-            x: window.screenX,
-            y: window.screenY,
-            w: window.outerWidth,
-            h: window.outerHeight
-        };
-        const w = 320;
-        const h = 120;
-        window.resizeTo(w, h);
-        window.moveTo(
-            Math.max(0, (window.screen.availWidth || 1280) - w - 16),
-            Math.max(0, (window.screen.availHeight || 720) - h - 16)
-        );
-    } catch (e) {
-        // ブラウザのタブで開いている場合はリサイズできない（表示だけコンパクトにする）
-        console.info('本体ウィンドウのリサイズは利用できません:', e);
-    }
-}
-
-function restoreMainWindow() {
-    document.body.classList.remove('compact');
-    if (!savedWindowRect) return;
-    try {
-        window.resizeTo(savedWindowRect.w, savedWindowRect.h);
-        window.moveTo(savedWindowRect.x, savedWindowRect.y);
-    } catch (e) {
-        console.info('本体ウィンドウの復帰に失敗:', e);
-    }
-    savedWindowRect = null;
-}
-
 async function openMiniTimer() {
     if (!isMiniTimerSupported()) return;
     if (miniWindow && !miniWindow.closed) {
         miniWindow.focus();
-        stashMainWindow();
         return;
     }
     try {
@@ -608,15 +566,11 @@ async function openMiniTimer() {
         miniDisplay = null;
         miniAlarmBtn = null;
         miniPresetRow = null;
-        restoreMainWindow();
     });
 
     // 現在の状態を反映
     updateCountdownDisplay();
     showAlarmButton(alarmButtonVisible);
-
-    // 本体の大きい画面を隅に退避する
-    stashMainWindow();
 }
 
 // --- 起動パラメータ（Windows ウィジェット／ジャンプリストからの起動） ---
@@ -704,10 +658,6 @@ window.addEventListener('DOMContentLoaded', () => {
         miniArea.style.display = '';
         miniBtn.addEventListener('click', openMiniTimer);
     }
-
-    // コンパクト表示からの復帰
-    const restoreBtn = document.getElementById('restore-main');
-    if (restoreBtn) restoreBtn.addEventListener('click', restoreMainWindow);
 
     // ウィジェット等からの起動指定を反映（最後に実行）
     applyLaunchParams();

@@ -3,7 +3,7 @@
    - Windows 11 ウィジェットボード（PWA Widgets）のイベント処理
 */
 
-const CACHE_VERSION = 'apptimer-v3';
+const CACHE_VERSION = 'apptimer-v4';
 const APP_SHELL = [
     './',
     './index.html',
